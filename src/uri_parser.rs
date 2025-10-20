@@ -1,8 +1,8 @@
 use crate::{
     traits::{HasIdPath, HasPath},
-    PubkyAppBlob, PubkyAppBookmark, PubkyAppFeed, PubkyAppFile, PubkyAppFollow, PubkyAppLastRead,
-    PubkyAppMute, PubkyAppPost, PubkyAppTag, PubkyAppUser, PubkyId, APP_PATH, PROTOCOL,
-    PUBLIC_PATH,
+    PubkyAppAttendee, PubkyAppBlob, PubkyAppBookmark, PubkyAppCalendar, PubkyAppEvent,
+    PubkyAppFeed, PubkyAppFile, PubkyAppFollow, PubkyAppLastRead, PubkyAppMute, PubkyAppPost,
+    PubkyAppTag, PubkyAppUser, PubkyId, APP_PATH, PROTOCOL, PUBLIC_PATH,
 };
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
@@ -13,6 +13,9 @@ use url::Url;
 pub enum Resource {
     User,
     Post(String),
+    Calendar(String),
+    Event(String),
+    Attendee(String),
     Follow(PubkyId),
     Mute(PubkyId),
     Bookmark(String),
@@ -33,6 +36,9 @@ impl fmt::Display for Resource {
             Resource::User => PubkyAppUser::PATH_SEGMENT.trim_end_matches('/'),
             Resource::LastRead => PubkyAppLastRead::PATH_SEGMENT.trim_end_matches('/'),
             Resource::Post(_) => PubkyAppPost::PATH_SEGMENT.trim_end_matches('/'),
+            Resource::Calendar(_) => PubkyAppCalendar::PATH_SEGMENT.trim_end_matches('/'),
+            Resource::Event(_) => PubkyAppEvent::PATH_SEGMENT.trim_end_matches('/'),
+            Resource::Attendee(_) => PubkyAppAttendee::PATH_SEGMENT.trim_end_matches('/'),
             Resource::Follow(_) => PubkyAppFollow::PATH_SEGMENT.trim_end_matches('/'),
             Resource::Mute(_) => PubkyAppMute::PATH_SEGMENT.trim_end_matches('/'),
             Resource::Bookmark(_) => PubkyAppBookmark::PATH_SEGMENT.trim_end_matches('/'),
@@ -52,6 +58,9 @@ impl Resource {
     pub fn id(&self) -> Option<String> {
         match self {
             Resource::Post(id) => Some(id.clone()),
+            Resource::Calendar(id) => Some(id.clone()),
+            Resource::Event(id) => Some(id.clone()),
+            Resource::Attendee(id) => Some(id.clone()),
             Resource::Follow(id) => Some(id.to_string()),
             Resource::Mute(id) => Some(id.to_string()),
             Resource::Bookmark(id) => Some(id.clone()),
@@ -129,6 +138,9 @@ impl TryFrom<&str> for ParsedUri {
                 let resource_type = format!("{}/", res_type);
                 match resource_type.as_str() {
                     PubkyAppPost::PATH_SEGMENT => Resource::Post(id.to_string()),
+                    PubkyAppCalendar::PATH_SEGMENT => Resource::Calendar(id.to_string()),
+                    PubkyAppEvent::PATH_SEGMENT => Resource::Event(id.to_string()),
+                    PubkyAppAttendee::PATH_SEGMENT => Resource::Attendee(id.to_string()),
                     PubkyAppFollow::PATH_SEGMENT => PubkyId::try_from(id).map(Resource::Follow)?,
                     PubkyAppMute::PATH_SEGMENT => PubkyId::try_from(id).map(Resource::Mute)?,
                     PubkyAppBookmark::PATH_SEGMENT => Resource::Bookmark(id.to_string()),

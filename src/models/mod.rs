@@ -1,7 +1,10 @@
 use crate::{traits::Validatable, ParsedUri, Resource};
 
+pub mod attendee;
 pub mod blob;
 pub mod bookmark;
+pub mod calendar;
+pub mod event;
 pub mod feed;
 pub mod file;
 pub mod follow;
@@ -12,8 +15,9 @@ pub mod tag;
 pub mod user;
 
 use super::{
-    PubkyAppBlob, PubkyAppBookmark, PubkyAppFeed, PubkyAppFile, PubkyAppFollow, PubkyAppLastRead,
-    PubkyAppMute, PubkyAppPost, PubkyAppTag, PubkyAppUser,
+    PubkyAppAttendee, PubkyAppBlob, PubkyAppBookmark, PubkyAppCalendar, PubkyAppEvent,
+    PubkyAppFeed, PubkyAppFile, PubkyAppFollow, PubkyAppLastRead, PubkyAppMute, PubkyAppPost,
+    PubkyAppTag, PubkyAppUser,
 };
 
 /// A unified enum wrapping all PubkyApp objects.
@@ -21,6 +25,9 @@ use super::{
 pub enum PubkyAppObject {
     User(user::PubkyAppUser),
     Post(post::PubkyAppPost),
+    Calendar(calendar::PubkyAppCalendar),
+    Event(event::PubkyAppEvent),
+    Attendee(attendee::PubkyAppAttendee),
     Follow(follow::PubkyAppFollow),
     Mute(mute::PubkyAppMute),
     Bookmark(bookmark::PubkyAppBookmark),
@@ -51,6 +58,18 @@ impl PubkyAppObject {
             Resource::Post(post_id) => {
                 let post = <PubkyAppPost as Validatable>::try_from(blob, post_id)?;
                 Ok(PubkyAppObject::Post(post))
+            }
+            Resource::Calendar(calendar_id) => {
+                let calendar = <PubkyAppCalendar as Validatable>::try_from(blob, calendar_id)?;
+                Ok(PubkyAppObject::Calendar(calendar))
+            }
+            Resource::Event(event_id) => {
+                let event = <PubkyAppEvent as Validatable>::try_from(blob, event_id)?;
+                Ok(PubkyAppObject::Event(event))
+            }
+            Resource::Attendee(attendee_id) => {
+                let attendee = <PubkyAppAttendee as Validatable>::try_from(blob, attendee_id)?;
+                Ok(PubkyAppObject::Attendee(attendee))
             }
             Resource::Follow(follow_id) => {
                 // Use the follow id from the parsed URI.
