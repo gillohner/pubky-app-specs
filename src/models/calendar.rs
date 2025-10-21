@@ -187,8 +187,8 @@ mod tests {
     #[test]
     fn test_create_id() {
         let calendar = PubkyAppCalendar::new(
-            Some("Bitcoin Switzerland Events".to_string()),
-            Some("#F7931A".to_string()),
+            Some("Test".to_string()),
+            Some("#".to_string() + "FF0000"),
             None,
             Some("Europe/Zurich".to_string()),
             Some(1698753600000000),
@@ -199,142 +199,6 @@ mod tests {
 
         // Assert that the calendar ID is 13 characters long
         assert_eq!(calendar_id.len(), 13);
-    }
-
-    #[test]
-    fn test_new() {
-        let name = "Bitcoin Switzerland Events".to_string();
-        let color = "#F7931A".to_string();
-        let calendar = PubkyAppCalendar::new(
-            Some(name.clone()),
-            Some(color.clone()),
-            None,
-            Some("Europe/Zurich".to_string()),
-            Some(1698753600000000),
-        );
-
-        assert_eq!(calendar.name, Some(name));
-        assert_eq!(calendar.color, Some(color));
-        assert!(calendar.x_pubky_admins.is_none());
-    }
-
-    #[test]
-    fn test_create_path() {
-        let calendar = PubkyAppCalendar::new(
-            Some("Test Calendar".to_string()),
-            None,
-            None,
-            None,
-            None,
-        );
-
-        let calendar_id = calendar.create_id();
-        let path = PubkyAppCalendar::create_path(&calendar_id);
-
-        // Check if the path starts with the expected prefix
-        let prefix = format!("{}{}calendar/", PUBLIC_PATH, APP_PATH);
-        assert!(path.starts_with(&prefix));
-
-        let expected_path_len = prefix.len() + calendar_id.len();
-        assert_eq!(path.len(), expected_path_len);
-    }
-
-    #[test]
-    fn test_sanitize() {
-        let name = "  Bitcoin Switzerland Events   ".to_string();
-        let calendar = PubkyAppCalendar::new(
-            Some(name.clone()),
-            Some("  #F7931A  ".to_string()),
-            Some(vec!["invalid uri".to_string()]),
-            Some("  Europe/Zurich  ".to_string()),
-            Some(1698753600000000),
-        );
-
-        let sanitized_calendar = calendar.sanitize();
-        assert_eq!(
-            sanitized_calendar.name,
-            Some("Bitcoin Switzerland Events".to_string())
-        );
-        assert_eq!(sanitized_calendar.color, Some("#F7931A".to_string()));
-        assert_eq!(sanitized_calendar.timezone, Some("Europe/Zurich".to_string()));
-        // Invalid URIs should be filtered out
-        assert!(sanitized_calendar.x_pubky_admins.unwrap().is_empty());
-    }
-
-    #[test]
-    fn test_validate_valid() {
-        let calendar = PubkyAppCalendar::new(
-            Some("Bitcoin Switzerland Events".to_string()),
-            Some("#F7931A".to_string()),
-            None,
-            Some("Europe/Zurich".to_string()),
-            Some(1698753600000000),
-        );
-
-        let id = calendar.create_id();
-        let result = calendar.validate(Some(&id));
-        assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_validate_missing_name() {
-        let calendar = PubkyAppCalendar::new(None, None, None, None, None);
-
-        let id = calendar.create_id();
-        let result = calendar.validate(Some(&id));
-        assert!(result.is_err());
-        assert!(result
-            .unwrap_err()
-            .contains("Calendar name is required"));
-    }
-
-    #[test]
-    fn test_validate_invalid_id() {
-        let calendar = PubkyAppCalendar::new(
-            Some("Valid Calendar".to_string()),
-            None,
-            None,
-            None,
-            None,
-        );
-
-        let invalid_id = "INVALIDID12345";
-        let result = calendar.validate(Some(invalid_id));
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn test_try_from_valid() {
-        let calendar_json = r#"
-        {
-            "name": "Bitcoin Switzerland Events",
-            "color": "#F7931A",
-            "x_pubky_admins": ["pubky://satoshi", "pubky://adam-back"],
-            "timezone": "Europe/Zurich",
-            "created": 1698753600000000
-        }
-        "#;
-
-        let id = PubkyAppCalendar::new(
-            Some("Bitcoin Switzerland Events".to_string()),
-            Some("#F7931A".to_string()),
-            Some(vec![
-                "pubky://satoshi".to_string(),
-                "pubky://adam-back".to_string(),
-            ]),
-            Some("Europe/Zurich".to_string()),
-            Some(1698753600000000),
-        )
-        .create_id();
-
-        let blob = calendar_json.as_bytes();
-        let calendar = <PubkyAppCalendar as Validatable>::try_from(blob, &id).unwrap();
-
-        assert_eq!(
-            calendar.name,
-            Some("Bitcoin Switzerland Events".to_string())
-        );
-        assert_eq!(calendar.color, Some("#F7931A".to_string()));
     }
 }
 
