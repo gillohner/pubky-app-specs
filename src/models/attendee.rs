@@ -13,47 +13,80 @@ use wasm_bindgen::prelude::*;
 #[cfg(feature = "openapi")]
 use utoipa::ToSchema;
 
-/// Represents an attendee/RSVP in the Pubky ecosystem
-/// URI: /pub/pubky.app/attendee/:attendee_id
-/// Where attendee_id is CrockfordBase32 encoding of timestamp
+/// Represents an attendee/RSVP record in the Pubky ecosystem.
 ///
-/// Example URI:
+/// This struct implements RFC 5545/5546 ATTENDEE properties.
+/// The attendee's name is fetched from their profile.json, not stored here.
 ///
-/// `/pub/pubky.app/attendee/0033UCZXVEPNG`
+/// # Storage Path
+/// `/pub/pubky.app/attendee/:attendee_id`
+///
+/// Where `:attendee_id` is the Crockford base32 encoding of the RSVP's creation timestamp.
+///
+/// # Example
+/// ```json
+/// {
+///   "attendee_uri": "pubky://alice",
+///   "partstat": "ACCEPTED",
+///   "role": "REQ-PARTICIPANT",
+///   "rsvp": true,
+///   "x_pubky_event_uri": "pubky://satoshi/pub/pubky.app/event/0033SCZXVEPNG"
+/// }
+/// ```
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 #[derive(Serialize, Deserialize, Default, Clone, Debug)]
 #[cfg_attr(feature = "openapi", derive(ToSchema))]
 pub struct PubkyAppAttendee {
-    // RFC 5545 / 5546 - Attendee/RSVP Properties
+    // RFC 5545/5546 - Attendee/RSVP Properties
+    
+    /// Pubky URI of the attendee (REQUIRED)
+    /// Name is fetched from the attendee's profile.json
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen(skip))]
-    pub attendee_uri: Option<String>, // Pubky URI of attendee
+    pub attendee_uri: String,
+    
+    /// Participation status (REQUIRED)
+    /// Values: NEEDS-ACTION | ACCEPTED | DECLINED | TENTATIVE
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen(skip))]
-    pub attendee_name: Option<String>, // Display name
+    pub partstat: String,
+    
+    /// Role of the attendee
+    /// Values: CHAIR | REQ-PARTICIPANT | OPT-PARTICIPANT | NON-PARTICIPANT
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen(skip))]
-    pub partstat: Option<String>, // NEEDS-ACTION | ACCEPTED | DECLINED | TENTATIVE | DELEGATED
+    pub role: Option<String>,
+    
+    /// Whether RSVP is requested/expected
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen(skip))]
-    pub role: Option<String>, // CHAIR | REQ-PARTICIPANT | OPT-PARTICIPANT | NON-PARTICIPANT
+    pub rsvp: Option<bool>,
+    
+    /// Pubky URI of the delegator (for future delegation support)
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen(skip))]
+    pub delegated_from: Option<String>,
+    
+    /// Pubky URI of the delegatee (for future delegation support)
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen(skip))]
+    pub delegated_to: Option<String>,
+    
+    /// For recurring events, specifies which instance this RSVP is for
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen(skip))]
+    pub recurrence_id: Option<i64>,
 
-    // Pubky Linkage
+    // Pubky Extensions
+    
+    /// URI of the event this RSVP belongs to (REQUIRED)
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen(skip))]
-    pub x_pubky_event_uri: Option<String>, // URI of the event this RSVP belongs to
+    pub x_pubky_event_uri: String,
 }
 
 #[cfg(target_arch = "wasm32")]
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 impl PubkyAppAttendee {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen(getter))]
-    pub fn attendee_uri(&self) -> Option<String> {
+    pub fn attendee_uri(&self) -> String {
         self.attendee_uri.clone()
     }
 
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen(getter))]
-    pub fn attendee_name(&self) -> Option<String> {
-        self.attendee_name.clone()
-    }
-
-    #[cfg_attr(target_arch = "wasm32", wasm_bindgen(getter))]
-    pub fn partstat(&self) -> Option<String> {
+    pub fn partstat(&self) -> String {
         self.partstat.clone()
     }
 
@@ -63,7 +96,27 @@ impl PubkyAppAttendee {
     }
 
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen(getter))]
-    pub fn x_pubky_event_uri(&self) -> Option<String> {
+    pub fn rsvp(&self) -> Option<bool> {
+        self.rsvp
+    }
+
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen(getter))]
+    pub fn delegated_from(&self) -> Option<String> {
+        self.delegated_from.clone()
+    }
+
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen(getter))]
+    pub fn delegated_to(&self) -> Option<String> {
+        self.delegated_to.clone()
+    }
+
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen(getter))]
+    pub fn recurrence_id(&self) -> Option<i64> {
+        self.recurrence_id
+    }
+
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen(getter))]
+    pub fn x_pubky_event_uri(&self) -> String {
         self.x_pubky_event_uri.clone()
     }
 
@@ -86,17 +139,23 @@ impl PubkyAppAttendee {
     /// Creates a new `PubkyAppAttendee` instance and sanitizes it.
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen(constructor))]
     pub fn new(
-        attendee_uri: Option<String>,
-        attendee_name: Option<String>,
-        partstat: Option<String>,
+        attendee_uri: String,
+        partstat: String,
         role: Option<String>,
-        x_pubky_event_uri: Option<String>,
+        rsvp: Option<bool>,
+        delegated_from: Option<String>,
+        delegated_to: Option<String>,
+        recurrence_id: Option<i64>,
+        x_pubky_event_uri: String,
     ) -> Self {
         let attendee = PubkyAppAttendee {
             attendee_uri,
-            attendee_name,
             partstat,
             role,
+            rsvp,
+            delegated_from,
+            delegated_to,
+            recurrence_id,
             x_pubky_event_uri,
         };
         attendee.sanitize()
@@ -115,27 +174,40 @@ impl HasIdPath for PubkyAppAttendee {
 
 impl Validatable for PubkyAppAttendee {
     fn sanitize(self) -> Self {
-        // Sanitize URIs
-        let attendee_uri = self
-            .attendee_uri
-            .and_then(|uri| Url::parse(&uri).ok().map(|url| url.to_string()));
+        // Sanitize required URIs
+        let attendee_uri = if let Ok(url) = Url::parse(&self.attendee_uri) {
+            url.to_string()
+        } else {
+            self.attendee_uri
+        };
 
-        let x_pubky_event_uri = self
-            .x_pubky_event_uri
-            .and_then(|uri| Url::parse(&uri).ok().map(|url| url.to_string()));
-
-        // Sanitize name
-        let attendee_name = self.attendee_name.map(|n| n.trim().to_string());
+        let x_pubky_event_uri = if let Ok(url) = Url::parse(&self.x_pubky_event_uri) {
+            url.to_string()
+        } else {
+            self.x_pubky_event_uri
+        };
 
         // Sanitize status and role - must be valid values
-        let partstat = self.partstat.map(|s| s.trim().to_uppercase());
+        let partstat = self.partstat.trim().to_uppercase();
         let role = self.role.map(|r| r.trim().to_uppercase());
+
+        // Sanitize delegation URIs
+        let delegated_from = self
+            .delegated_from
+            .and_then(|uri| Url::parse(&uri).ok().map(|url| url.to_string()));
+
+        let delegated_to = self
+            .delegated_to
+            .and_then(|uri| Url::parse(&uri).ok().map(|url| url.to_string()));
 
         PubkyAppAttendee {
             attendee_uri,
-            attendee_name,
             partstat,
             role,
+            rsvp: self.rsvp,
+            delegated_from,
+            delegated_to,
+            recurrence_id: self.recurrence_id,
             x_pubky_event_uri,
         }
     }
@@ -147,30 +219,28 @@ impl Validatable for PubkyAppAttendee {
         }
 
         // Validate required fields
-        let attendee_uri = self
-            .attendee_uri
-            .as_ref()
-            .ok_or("Validation Error: Attendee attendee_uri is required")?;
+        if self.attendee_uri.is_empty() {
+            return Err("Validation Error: Attendee attendee_uri cannot be empty".into());
+        }
 
-        Url::parse(attendee_uri).map_err(|_| {
+        Url::parse(&self.attendee_uri).map_err(|_| {
             format!(
                 "Validation Error: Invalid attendee_uri: {}",
-                attendee_uri
+                self.attendee_uri
             )
         })?;
 
-        let partstat = self
-            .partstat
-            .as_ref()
-            .ok_or("Validation Error: Attendee partstat is required")?;
+        if self.partstat.is_empty() {
+            return Err("Validation Error: Attendee partstat cannot be empty".into());
+        }
 
         // Validate partstat value
-        match partstat.as_str() {
-            "NEEDS-ACTION" | "ACCEPTED" | "DECLINED" | "TENTATIVE" | "DELEGATED" => {}
+        match self.partstat.as_str() {
+            "NEEDS-ACTION" | "ACCEPTED" | "DECLINED" | "TENTATIVE" => {}
             _ => {
                 return Err(format!(
-                    "Validation Error: Invalid partstat: {}. Must be one of: NEEDS-ACTION, ACCEPTED, DECLINED, TENTATIVE, DELEGATED",
-                    partstat
+                    "Validation Error: Invalid partstat: {}. Must be one of: NEEDS-ACTION, ACCEPTED, DECLINED, TENTATIVE",
+                    self.partstat
                 ))
             }
         }
@@ -188,12 +258,40 @@ impl Validatable for PubkyAppAttendee {
             }
         }
 
-        // Validate event URI if present
-        if let Some(event_uri) = &self.x_pubky_event_uri {
-            Url::parse(event_uri).map_err(|_| {
+        // Validate event URI
+        if self.x_pubky_event_uri.is_empty() {
+            return Err("Validation Error: Attendee x_pubky_event_uri cannot be empty".into());
+        }
+
+        let parsed = Url::parse(&self.x_pubky_event_uri).map_err(|_| {
+            format!(
+                "Validation Error: Invalid x_pubky_event_uri: {}",
+                self.x_pubky_event_uri
+            )
+        })?;
+
+        if parsed.scheme() != "pubky" {
+            return Err(format!(
+                "Validation Error: Event URI must use pubky:// scheme: {}",
+                self.x_pubky_event_uri
+            ));
+        }
+
+        // Validate delegation URIs if present
+        if let Some(delegated_from) = &self.delegated_from {
+            Url::parse(delegated_from).map_err(|_| {
                 format!(
-                    "Validation Error: Invalid x_pubky_event_uri: {}",
-                    event_uri
+                    "Validation Error: Invalid delegated_from URI: {}",
+                    delegated_from
+                )
+            })?;
+        }
+
+        if let Some(delegated_to) = &self.delegated_to {
+            Url::parse(delegated_to).map_err(|_| {
+                format!(
+                    "Validation Error: Invalid delegated_to URI: {}",
+                    delegated_to
                 )
             })?;
         }
@@ -207,53 +305,45 @@ mod tests {
     use super::*;
     use crate::traits::Validatable;
 
+    fn create_test_attendee() -> PubkyAppAttendee {
+        PubkyAppAttendee::new(
+            "pubky://alice".to_string(),
+            "ACCEPTED".to_string(),
+            Some("REQ-PARTICIPANT".to_string()),
+            Some(true),
+            None,
+            None,
+            None,
+            "pubky://satoshi/pub/pubky.app/event/0033SCZXVEPNG".to_string(),
+        )
+    }
+
     #[test]
     fn test_create_id() {
-        let attendee = PubkyAppAttendee::new(
-            Some("pubky://alice".to_string()),
-            Some("Alice".to_string()),
-            Some("ACCEPTED".to_string()),
-            Some("REQ-PARTICIPANT".to_string()),
-            Some("pubky://satoshi/pub/pubky.app/event/0033SCZXVEPNG".to_string()),
-        );
-
+        let attendee = create_test_attendee();
         let attendee_id = attendee.create_id();
         println!("Generated Attendee ID: {}", attendee_id);
-
-        // Assert that the attendee ID is 13 characters long
         assert_eq!(attendee_id.len(), 13);
     }
 
     #[test]
     fn test_new() {
-        let attendee = PubkyAppAttendee::new(
-            Some("pubky://alice".to_string()),
-            Some("Alice".to_string()),
-            Some("ACCEPTED".to_string()),
-            Some("REQ-PARTICIPANT".to_string()),
-            Some("pubky://satoshi/pub/pubky.app/event/0033SCZXVEPNG".to_string()),
+        let attendee = create_test_attendee();
+        assert_eq!(attendee.attendee_uri, "pubky://alice".to_string());
+        assert_eq!(attendee.partstat, "ACCEPTED".to_string());
+        assert_eq!(
+            attendee.role,
+            Some("REQ-PARTICIPANT".to_string())
         );
-
-        assert_eq!(attendee.attendee_uri, Some("pubky://alice".to_string()));
-        assert_eq!(attendee.attendee_name, Some("Alice".to_string()));
-        assert_eq!(attendee.partstat, Some("ACCEPTED".to_string()));
-        assert_eq!(attendee.role, Some("REQ-PARTICIPANT".to_string()));
+        assert_eq!(attendee.rsvp, Some(true));
     }
 
     #[test]
     fn test_create_path() {
-        let attendee = PubkyAppAttendee::new(
-            Some("pubky://alice".to_string()),
-            Some("Alice".to_string()),
-            Some("ACCEPTED".to_string()),
-            Some("REQ-PARTICIPANT".to_string()),
-            None,
-        );
-
+        let attendee = create_test_attendee();
         let attendee_id = attendee.create_id();
         let path = PubkyAppAttendee::create_path(&attendee_id);
 
-        // Check if the path starts with the expected prefix
         let prefix = format!("{}{}attendee/", PUBLIC_PATH, APP_PATH);
         assert!(path.starts_with(&prefix));
 
@@ -264,58 +354,57 @@ mod tests {
     #[test]
     fn test_sanitize() {
         let attendee = PubkyAppAttendee::new(
-            Some("pubky://alice".to_string()),
-            Some("  Alice  ".to_string()),
-            Some("  accepted  ".to_string()),
+            "pubky://alice".to_string(),
+            "  accepted  ".to_string(),
             Some("  req-participant  ".to_string()),
+            Some(true),
             Some("invalid uri".to_string()),
+            None,
+            None,
+            "pubky://satoshi/pub/pubky.app/event/0033SCZXVEPNG".to_string(),
         );
 
         let sanitized = attendee.sanitize();
-        assert_eq!(sanitized.attendee_name, Some("Alice".to_string()));
-        assert_eq!(sanitized.partstat, Some("ACCEPTED".to_string()));
+        assert_eq!(sanitized.partstat, "ACCEPTED".to_string());
         assert_eq!(sanitized.role, Some("REQ-PARTICIPANT".to_string()));
-        // Invalid event URI should be filtered out
-        assert!(sanitized.x_pubky_event_uri.is_none());
+        // Invalid delegation URI should be filtered out
+        assert!(sanitized.delegated_from.is_none());
     }
 
     #[test]
     fn test_validate_valid() {
-        let attendee = PubkyAppAttendee::new(
-            Some("pubky://alice".to_string()),
-            Some("Alice".to_string()),
-            Some("ACCEPTED".to_string()),
-            Some("REQ-PARTICIPANT".to_string()),
-            Some("pubky://satoshi/pub/pubky.app/event/0033SCZXVEPNG".to_string()),
-        );
-
+        let attendee = create_test_attendee();
         let id = attendee.create_id();
         let result = attendee.validate(Some(&id));
         assert!(result.is_ok());
     }
 
     #[test]
-    fn test_validate_missing_required_fields() {
-        let attendee = PubkyAppAttendee::new(None, None, None, None, None);
-
+    fn test_validate_missing_attendee_uri() {
+        let mut attendee = create_test_attendee();
+        attendee.attendee_uri = String::new();
         let id = attendee.create_id();
         let result = attendee.validate(Some(&id));
         assert!(result.is_err());
         assert!(result
             .unwrap_err()
-            .contains("attendee_uri is required"));
+            .contains("attendee_uri cannot be empty"));
+    }
+
+    #[test]
+    fn test_validate_missing_partstat() {
+        let mut attendee = create_test_attendee();
+        attendee.partstat = String::new();
+        let id = attendee.create_id();
+        let result = attendee.validate(Some(&id));
+        assert!(result.is_err());
+        assert!(result.unwrap_err().contains("partstat cannot be empty"));
     }
 
     #[test]
     fn test_validate_invalid_partstat() {
-        let attendee = PubkyAppAttendee::new(
-            Some("pubky://alice".to_string()),
-            Some("Alice".to_string()),
-            Some("INVALID_STATUS".to_string()),
-            None,
-            None,
-        );
-
+        let mut attendee = create_test_attendee();
+        attendee.partstat = "INVALID_STATUS".to_string();
         let id = attendee.create_id();
         let result = attendee.validate(Some(&id));
         assert!(result.is_err());
@@ -324,14 +413,8 @@ mod tests {
 
     #[test]
     fn test_validate_invalid_role() {
-        let attendee = PubkyAppAttendee::new(
-            Some("pubky://alice".to_string()),
-            Some("Alice".to_string()),
-            Some("ACCEPTED".to_string()),
-            Some("INVALID_ROLE".to_string()),
-            None,
-        );
-
+        let mut attendee = create_test_attendee();
+        attendee.role = Some("INVALID_ROLE".to_string());
         let id = attendee.create_id();
         let result = attendee.validate(Some(&id));
         assert!(result.is_err());
@@ -339,31 +422,54 @@ mod tests {
     }
 
     #[test]
+    fn test_validate_event_uri_must_be_pubky() {
+        let mut attendee = create_test_attendee();
+        attendee.x_pubky_event_uri = "https://example.com/event/123".to_string();
+        let id = attendee.create_id();
+        let result = attendee.validate(Some(&id));
+        assert!(result.is_err());
+        assert!(result
+            .unwrap_err()
+            .contains("must use pubky:// scheme"));
+    }
+
+    #[test]
+    fn test_validate_with_delegation() {
+        let mut attendee = create_test_attendee();
+        attendee.delegated_from = Some("pubky://bob".to_string());
+        attendee.delegated_to = Some("pubky://carol".to_string());
+        let id = attendee.create_id();
+        let result = attendee.validate(Some(&id));
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_validate_with_recurrence_id() {
+        let mut attendee = create_test_attendee();
+        attendee.recurrence_id = Some(1698753600000000);
+        let id = attendee.create_id();
+        let result = attendee.validate(Some(&id));
+        assert!(result.is_ok());
+    }
+
+    #[test]
     fn test_try_from_valid() {
         let attendee_json = r#"
         {
             "attendee_uri": "pubky://alice",
-            "attendee_name": "Alice",
             "partstat": "ACCEPTED",
             "role": "REQ-PARTICIPANT",
+            "rsvp": true,
             "x_pubky_event_uri": "pubky://satoshi/pub/pubky.app/event/0033SCZXVEPNG"
         }
         "#;
 
-        let id = PubkyAppAttendee::new(
-            Some("pubky://alice".to_string()),
-            Some("Alice".to_string()),
-            Some("ACCEPTED".to_string()),
-            Some("REQ-PARTICIPANT".to_string()),
-            Some("pubky://satoshi/pub/pubky.app/event/0033SCZXVEPNG".to_string()),
-        )
-        .create_id();
-
+        let id = create_test_attendee().create_id();
         let blob = attendee_json.as_bytes();
         let attendee = <PubkyAppAttendee as Validatable>::try_from(blob, &id).unwrap();
 
-        assert_eq!(attendee.attendee_uri, Some("pubky://alice".to_string()));
-        assert_eq!(attendee.partstat, Some("ACCEPTED".to_string()));
+        assert_eq!(attendee.attendee_uri, "pubky://alice".to_string());
+        assert_eq!(attendee.partstat, "ACCEPTED".to_string());
+        assert_eq!(attendee.rsvp, Some(true));
     }
 }
-

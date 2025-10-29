@@ -1,5 +1,6 @@
 use crate::{traits::Validatable, ParsedUri, Resource};
 
+pub mod alarm;
 pub mod attendee;
 pub mod blob;
 pub mod bookmark;
@@ -15,9 +16,9 @@ pub mod tag;
 pub mod user;
 
 use super::{
-    PubkyAppAttendee, PubkyAppBlob, PubkyAppBookmark, PubkyAppCalendar, PubkyAppEvent,
-    PubkyAppFeed, PubkyAppFile, PubkyAppFollow, PubkyAppLastRead, PubkyAppMute, PubkyAppPost,
-    PubkyAppTag, PubkyAppUser,
+    PubkyAppAlarm, PubkyAppAttendee, PubkyAppBlob, PubkyAppBookmark, PubkyAppCalendar,
+    PubkyAppEvent, PubkyAppFeed, PubkyAppFile, PubkyAppFollow, PubkyAppLastRead, PubkyAppMute,
+    PubkyAppPost, PubkyAppTag, PubkyAppUser,
 };
 
 /// A unified enum wrapping all PubkyApp objects.
@@ -28,6 +29,7 @@ pub enum PubkyAppObject {
     Calendar(calendar::PubkyAppCalendar),
     Event(event::PubkyAppEvent),
     Attendee(attendee::PubkyAppAttendee),
+    Alarm(alarm::PubkyAppAlarm),
     Follow(follow::PubkyAppFollow),
     Mute(mute::PubkyAppMute),
     Bookmark(bookmark::PubkyAppBookmark),
@@ -70,6 +72,10 @@ impl PubkyAppObject {
             Resource::Attendee(attendee_id) => {
                 let attendee = <PubkyAppAttendee as Validatable>::try_from(blob, attendee_id)?;
                 Ok(PubkyAppObject::Attendee(attendee))
+            }
+            Resource::Alarm(alarm_id) => {
+                let alarm = <PubkyAppAlarm as Validatable>::try_from(blob, alarm_id)?;
+                Ok(PubkyAppObject::Alarm(alarm))
             }
             Resource::Follow(follow_id) => {
                 // Use the follow id from the parsed URI.
