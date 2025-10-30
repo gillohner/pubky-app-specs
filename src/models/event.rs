@@ -40,11 +40,11 @@ pub struct Conference {
     pub features: Option<Vec<String>>,
 }
 
-/// RFC 9073 VLOCATION - structured location component (repeatable)
+/// RFC 9073 structured location component (repeatable)
 /// Enables complex events with multiple locations (venue, parking, virtual, etc.)
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
 #[cfg_attr(feature = "openapi", derive(ToSchema))]
-pub struct VLocation {
+pub struct Location {
     /// Location name (REQUIRED) - e.g., "Insider Bar", "Parking Lot B"
     pub name: String,
     /// RFC 9073 LOCATION-TYPE: ARRIVAL, DEPARTURE, PARKING, VIRTUAL, etc.
@@ -187,7 +187,7 @@ pub struct PubkyAppEvent {
     /// Structured location data (RFC 9073 VLOCATION components)
     /// Repeatable for complex events with multiple locations
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen(skip))]
-    pub structured_locations: Option<Vec<VLocation>>,
+    pub structured_locations: Option<Vec<Location>>,
 
     // ============================================================================
     // RFC 7986 - Event Publishing Extensions
@@ -565,7 +565,7 @@ impl Validatable for PubkyAppEvent {
         // Sanitize structured locations
         let structured_locations = self.structured_locations.map(|locs| {
             locs.iter()
-                .map(|loc| VLocation {
+                .map(|loc| Location {
                     name: loc.name.trim().to_string(),
                     location_type: loc.location_type.as_ref().map(|s| s.trim().to_string()),
                     address: loc.address.as_ref().map(|s| s.trim().to_string()),
@@ -714,12 +714,12 @@ impl Validatable for PubkyAppEvent {
             for loc in locations {
                 if loc.name.is_empty() {
                     return Err(
-                        "Validation Error: VLocation name cannot be empty".into()
+                        "Validation Error: Location name cannot be empty".into()
                     );
                 }
                 if let Some(uri) = &loc.uri {
                     Url::parse(uri).map_err(|_| {
-                        format!("Validation Error: Invalid VLocation URI: {}", uri)
+                        format!("Validation Error: Invalid Location URI: {}", uri)
                     })?;
                 }
             }
@@ -961,14 +961,14 @@ mod tests {
     fn test_validate_with_structured_locations() {
         let mut event = create_test_event();
         event.structured_locations = Some(vec![
-            VLocation {
+            Location {
                 name: "Insider Bar".to_string(),
                 location_type: Some("ARRIVAL".to_string()),
                 address: Some("Münstergasse 20, 8001 Zürich".to_string()),
                 uri: Some("https://www.openstreetmap.org/node/123456789".to_string()),
                 description: None,
             },
-            VLocation {
+            Location {
                 name: "Parking Garage".to_string(),
                 location_type: Some("PARKING".to_string()),
                 address: Some("Uraniastrasse 1, 8001 Zürich".to_string()),
@@ -982,9 +982,9 @@ mod tests {
     }
 
     #[test]
-    fn test_validate_vlocation_empty_name() {
+    fn test_validate_location_empty_name() {
         let mut event = create_test_event();
-        event.structured_locations = Some(vec![VLocation {
+        event.structured_locations = Some(vec![Location {
             name: String::new(),
             location_type: Some("ARRIVAL".to_string()),
             address: None,
@@ -994,7 +994,7 @@ mod tests {
         let id = event.create_id();
         let result = event.validate(Some(&id));
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("VLocation name cannot be empty"));
+        assert!(result.unwrap_err().contains("Location name cannot be empty"));
     }
 
     #[test]
