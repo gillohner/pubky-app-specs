@@ -1,7 +1,13 @@
 use crate::{traits::Validatable, ParsedUri, Resource};
 
+#[cfg(test)]
+use crate::traits::{HashId, TimestampId};
+
+pub mod attendee;
 pub mod blob;
 pub mod bookmark;
+pub mod calendar;
+pub mod event;
 pub mod feed;
 pub mod file;
 pub mod follow;
@@ -12,8 +18,9 @@ pub mod tag;
 pub mod user;
 
 use super::{
-    PubkyAppBlob, PubkyAppBookmark, PubkyAppFeed, PubkyAppFile, PubkyAppFollow, PubkyAppLastRead,
-    PubkyAppMute, PubkyAppPost, PubkyAppTag, PubkyAppUser,
+    PubkyAppAttendee, PubkyAppBlob, PubkyAppBookmark, PubkyAppCalendar, PubkyAppEvent, 
+    PubkyAppFeed, PubkyAppFile, PubkyAppFollow, PubkyAppLastRead, PubkyAppMute, 
+    PubkyAppPost, PubkyAppTag, PubkyAppUser,
 };
 
 /// A unified enum wrapping all PubkyApp objects.
@@ -29,6 +36,9 @@ pub enum PubkyAppObject {
     Blob(blob::PubkyAppBlob),
     Feed(feed::PubkyAppFeed),
     LastRead(last_read::PubkyAppLastRead),
+    Calendar(calendar::PubkyAppCalendar),
+    Event(event::PubkyAppEvent),
+    Attendee(attendee::PubkyAppAttendee),
 }
 
 impl PubkyAppObject {
@@ -84,6 +94,18 @@ impl PubkyAppObject {
             Resource::LastRead => {
                 let last_read = <PubkyAppLastRead as Validatable>::try_from(blob, "")?;
                 Ok(PubkyAppObject::LastRead(last_read))
+            }
+            Resource::Calendar(calendar_id) => {
+                let calendar = <PubkyAppCalendar as Validatable>::try_from(blob, calendar_id)?;
+                Ok(PubkyAppObject::Calendar(calendar))
+            }
+            Resource::Event(event_id) => {
+                let event = <PubkyAppEvent as Validatable>::try_from(blob, event_id)?;
+                Ok(PubkyAppObject::Event(event))
+            }
+            Resource::Attendee(attendee_id) => {
+                let attendee = <PubkyAppAttendee as Validatable>::try_from(blob, attendee_id)?;
+                Ok(PubkyAppObject::Attendee(attendee))
             }
             Resource::Unknown => Err(format!("Unrecognized resource {:?}", resource)),
         }
@@ -370,6 +392,136 @@ mod tests {
                 );
             }
             other => panic!("Expected a LastRead object, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_import_calendar() {
+        // Create a calendar with the same data as in the JSON
+        let calendar = PubkyAppCalendar::new(
+            "Work Calendar".to_string(),
+            "Europe/Zurich".to_string(),
+        )
+        .with_color("#3498db".to_string())
+        .with_description("My work events".to_string());
+        
+        // Use the actual generated ID
+        let calendar_id = calendar.create_id();
+        let uri = calendar_uri_builder(
+            "operrr8wsbpr3ue9d4qj41ge1kcc6r7fdiy6o3ugjrrhi4y77rdo".into(),
+            calendar_id.clone(),
+        );
+        let calendar_json = r##"{
+            "name": "Work Calendar",
+            "color": "#3498db",
+            "image_uri": null,
+            "timezone": "Europe/Zurich",
+            "description": "My work events",
+            "url": null,
+            "created": 1627849730,
+            "x_pubky_admins": null
+        }"##;
+        let result = PubkyAppObject::from_uri(uri, calendar_json.as_bytes());
+        assert!(
+            result.is_ok(),
+            "Expected a successful import for calendar, got error: {:?}",
+            result.err()
+        );
+        match result.unwrap() {
+            PubkyAppObject::Calendar(calendar) => {
+                assert_eq!(calendar.name, "Work Calendar", "Calendar name mismatch");
+                assert_eq!(calendar.timezone, "Europe/Zurich", "Calendar timezone mismatch");
+            }
+            other => panic!("Expected a Calendar object, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_import_event() {
+        // Create an event with the same data as in the JSON to get the correct ID
+        let event = PubkyAppEvent::new(
+            "event-123".to_string(),
+            1627849800,
+            "Team Meeting".to_string(),
+        ).with_end_time(1627851600);
+        
+        // Use the actual generated ID
+        let event_id = event.create_id();
+        let uri = event_uri_builder(
+            "operrr8wsbpr3ue9d4qj41ge1kcc6r7fdiy6o3ugjrrhi4y77rdo".into(),
+            event_id.clone(),
+        );
+        let event_json = r##"{
+            "uid": "event-123",
+            "dtstamp": 1627849731,
+            "dtstart": 1627849800,
+            "summary": "Team Meeting",
+            "dtend": 1627851600,
+            "duration": null,
+            "dtstart_tzid": "Europe/Zurich",
+            "dtend_tzid": "Europe/Zurich",
+            "description": "Weekly team sync",
+            "status": "CONFIRMED",
+            "organizer": {
+                "name": "John Doe"
+            },
+            "categories": ["meeting", "work"],
+            "location": "Conference Room A",
+            "geo": "47.3769;8.5417",
+            "image_uri": null,
+            "url": "https://example.com/meeting",
+            "sequence": 0,
+            "last_modified": 1627849731,
+            "created": 1627849731,
+            "rrule": null,
+            "rdate": null,
+            "exdate": null,
+            "recurrence_id": null,
+            "styled_description": null,
+            "x_pubky_calendar_uris": null,
+            "x_pubky_rsvp_access": "PUBLIC"
+        }"##;
+        let result = PubkyAppObject::from_uri(uri, event_json.as_bytes());
+        assert!(
+            result.is_ok(),
+            "Expected a successful import for event, got error: {:?}",
+            result.err()
+        );
+        match result.unwrap() {
+            PubkyAppObject::Event(event) => {
+                assert_eq!(event.uid, "event-123", "Event UID mismatch");
+                assert_eq!(event.summary, "Team Meeting", "Event summary mismatch");
+                assert_eq!(event.status, Some("CONFIRMED".to_string()), "Event status mismatch");
+            }
+            other => panic!("Expected an Event object, got {:?}", other),
+        }
+    }
+
+    #[test]
+    fn test_import_attendee() {
+        let uri = attendee_uri_builder(
+            "operrr8wsbpr3ue9d4qj41ge1kcc6r7fdiy6o3ugjrrhi4y77rdo".into(),
+            "attendee123".into(),
+        );
+        let attendee_json = r##"{
+            "partstat": "ACCEPTED",
+            "created_at": 1627849732,
+            "last_modified": 1627849732,
+            "recurrence_id": null,
+            "x_pubky_event_uri": "pubky://operrr8wsbpr3ue9d4qj41ge1kcc6r7fdiy6o3ugjrrhi4y77rdo/pub/pubky.app/events/01HCXB9P7QBVKM"
+        }"##;
+        let result = PubkyAppObject::from_uri(uri, attendee_json.as_bytes());
+        assert!(
+            result.is_ok(),
+            "Expected a successful import for attendee, got error: {:?}",
+            result.err()
+        );
+        match result.unwrap() {
+            PubkyAppObject::Attendee(attendee) => {
+                assert_eq!(attendee.partstat, "ACCEPTED", "Attendee partstat mismatch");
+                assert!(attendee.x_pubky_event_uri.contains("events/01HCXB9P7QBVKM"), "Attendee event URI mismatch");
+            }
+            other => panic!("Expected an Attendee object, got {:?}", other),
         }
     }
 

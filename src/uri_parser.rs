@@ -1,8 +1,8 @@
 use crate::{
     traits::{HasIdPath, HasPath},
-    PubkyAppBlob, PubkyAppBookmark, PubkyAppFeed, PubkyAppFile, PubkyAppFollow, PubkyAppLastRead,
-    PubkyAppMute, PubkyAppPost, PubkyAppTag, PubkyAppUser, PubkyId, APP_PATH, PROTOCOL,
-    PUBLIC_PATH,
+    PubkyAppAttendee, PubkyAppBlob, PubkyAppBookmark, PubkyAppCalendar, PubkyAppEvent, 
+    PubkyAppFeed, PubkyAppFile, PubkyAppFollow, PubkyAppLastRead, PubkyAppMute, 
+    PubkyAppPost, PubkyAppTag, PubkyAppUser, PubkyId, APP_PATH, PROTOCOL, PUBLIC_PATH,
 };
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
@@ -21,6 +21,9 @@ pub enum Resource {
     Blob(String),
     Feed(String),
     LastRead,
+    Calendar(String),
+    Event(String),
+    Attendee(String),
     #[default]
     Unknown,
 }
@@ -40,6 +43,9 @@ impl fmt::Display for Resource {
             Resource::File(_) => PubkyAppFile::PATH_SEGMENT.trim_end_matches('/'),
             Resource::Blob(_) => PubkyAppBlob::PATH_SEGMENT.trim_end_matches('/'),
             Resource::Feed(_) => PubkyAppFeed::PATH_SEGMENT.trim_end_matches('/'),
+            Resource::Calendar(_) => PubkyAppCalendar::PATH_SEGMENT.trim_end_matches('/'),
+            Resource::Event(_) => PubkyAppEvent::PATH_SEGMENT.trim_end_matches('/'),
+            Resource::Attendee(_) => PubkyAppAttendee::PATH_SEGMENT.trim_end_matches('/'),
             Resource::Unknown => "unknown",
         };
         write!(f, "{}", name)
@@ -59,6 +65,9 @@ impl Resource {
             Resource::File(id) => Some(id.clone()),
             Resource::Blob(id) => Some(id.clone()),
             Resource::Feed(id) => Some(id.clone()),
+            Resource::Calendar(id) => Some(id.clone()),
+            Resource::Event(id) => Some(id.clone()),
+            Resource::Attendee(id) => Some(id.clone()),
             // The following variants do not carry an id.
             Resource::User | Resource::LastRead | Resource::Unknown => None,
         }
@@ -136,6 +145,9 @@ impl TryFrom<&str> for ParsedUri {
                     PubkyAppFile::PATH_SEGMENT => Resource::File(id.to_string()),
                     PubkyAppBlob::PATH_SEGMENT => Resource::Blob(id.to_string()),
                     PubkyAppFeed::PATH_SEGMENT => Resource::Feed(id.to_string()),
+                    PubkyAppCalendar::PATH_SEGMENT => Resource::Calendar(id.to_string()),
+                    PubkyAppEvent::PATH_SEGMENT => Resource::Event(id.to_string()),
+                    PubkyAppAttendee::PATH_SEGMENT => Resource::Attendee(id.to_string()),
                     _ => Resource::Unknown,
                 }
             }

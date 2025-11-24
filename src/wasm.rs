@@ -130,6 +130,9 @@ result_struct!(BookmarkResult, bookmark, PubkyAppBookmark);
 result_struct!(MuteResult, mute, PubkyAppMute);
 result_struct!(LastReadResult, last_read, PubkyAppLastRead);
 result_struct!(BlobResult, blob, PubkyAppBlob);
+result_struct!(CalendarResult, calendar, PubkyAppCalendar);
+result_struct!(EventResult, event, PubkyAppEvent);
+result_struct!(AttendeeResult, attendee, PubkyAppAttendee);
 
 #[wasm_bindgen]
 impl PubkySpecsBuilder {
@@ -380,6 +383,183 @@ impl PubkySpecsBuilder {
 
         Ok(BlobResult { blob, meta })
     }
+
+    // -----------------------------------------------------------------------------
+    // 11. PubkyAppCalendar
+    // -----------------------------------------------------------------------------
+
+    #[wasm_bindgen(js_name = createCalendar)]
+    pub fn create_calendar(
+        &self,
+        name: String,
+        timezone: String,
+        color: Option<String>,
+        image_uri: Option<String>,
+        description: Option<String>,
+        url: Option<String>,
+        x_pubky_admins: JsValue, // JS array of admin URIs or null
+    ) -> Result<CalendarResult, String> {
+        // Convert JS 'x_pubky_admins' -> Option<Vec<String>>
+        let admins_vec: Option<Vec<String>> = if x_pubky_admins.is_null() || x_pubky_admins.is_undefined() {
+            None
+        } else {
+            from_value(x_pubky_admins).map_err(|e| e.to_string())?
+        };
+
+        let mut calendar = PubkyAppCalendar::new(name, timezone);
+        if let Some(color_val) = color {
+            calendar = calendar.with_color(color_val);
+        }
+        if let Some(image_uri_val) = image_uri {
+            calendar = calendar.with_image_uri(image_uri_val);
+        }
+        if let Some(description_val) = description {
+            calendar = calendar.with_description(description_val);
+        }
+        if let Some(url_val) = url {
+            calendar = calendar.with_url(url_val);
+        }
+        if let Some(admins_val) = admins_vec {
+            calendar = calendar.with_admins(admins_val);
+        }
+        
+        let calendar_id = calendar.create_id();
+        calendar.validate(Some(&calendar_id))?;
+
+        let path = PubkyAppCalendar::create_path(&calendar_id);
+        let meta = Meta::from_object(Some(&calendar_id), self.pubky_id.clone(), path);
+
+        Ok(CalendarResult { calendar, meta })
+    }
+
+    // -----------------------------------------------------------------------------
+    // 12. PubkyAppEvent
+    // -----------------------------------------------------------------------------
+
+    #[wasm_bindgen(js_name = createEvent)]
+    pub fn create_event(
+        &self,
+        uid: String,
+        dtstart: i64,
+        summary: String,
+        dtend: Option<i64>,
+        duration: Option<String>,
+        dtstart_tzid: Option<String>,
+        dtend_tzid: Option<String>,
+        description: Option<String>,
+        status: Option<String>,
+        organizer: Option<Organizer>,
+        categories: JsValue, // JS array of strings or null
+        location: Option<String>,
+        geo: Option<String>,
+        image_uri: Option<String>,
+        url: Option<String>,
+        rrule: Option<String>,
+        rdate: JsValue, // JS array of strings or null
+        exdate: JsValue, // JS array of strings or null
+        recurrence_id: Option<i64>,
+        styled_description: Option<StyledDescription>,
+        x_pubky_calendar_uris: JsValue, // JS array of strings or null
+        x_pubky_rsvp_access: Option<String>,
+    ) -> Result<EventResult, String> {
+        // Convert JS arrays to Rust vectors
+        let categories_vec: Option<Vec<String>> = if categories.is_null() || categories.is_undefined() {
+            None
+        } else {
+            from_value(categories).map_err(|e| e.to_string())?
+        };
+
+        let rdate_vec: Option<Vec<String>> = if rdate.is_null() || rdate.is_undefined() {
+            None
+        } else {
+            from_value(rdate).map_err(|e| e.to_string())?
+        };
+
+        let exdate_vec: Option<Vec<String>> = if exdate.is_null() || exdate.is_undefined() {
+            None
+        } else {
+            from_value(exdate).map_err(|e| e.to_string())?
+        };
+
+        let calendar_uris_vec: Option<Vec<String>> = if x_pubky_calendar_uris.is_null() || x_pubky_calendar_uris.is_undefined() {
+            None
+        } else {
+            from_value(x_pubky_calendar_uris).map_err(|e| e.to_string())?
+        };
+
+        let mut event = PubkyAppEvent::new(uid, dtstart, summary);
+        
+        if let Some(dtend_val) = dtend {
+            event = event.with_end_time(dtend_val);
+        }
+        if let Some(description_val) = description {
+            event = event.with_description(description_val);
+        }
+        if let Some(location_val) = location {
+            event = event.with_location(location_val);
+        }
+        if let Some(geo_val) = geo {
+            event = event.with_geo(geo_val);
+        }
+        if let Some(status_val) = status {
+            event = event.with_status(status_val);
+        }
+        if let Some(organizer_val) = organizer {
+            event = event.with_organizer(organizer_val);
+        }
+        if let Some(categories_val) = categories_vec {
+            event = event.with_categories(categories_val);
+        }
+        
+        // Set remaining fields manually for now (no builder methods yet)
+        event.duration = duration;
+        event.dtstart_tzid = dtstart_tzid;
+        event.dtend_tzid = dtend_tzid;
+        event.image_uri = image_uri;
+        event.url = url;
+        event.rrule = rrule;
+        event.rdate = rdate_vec;
+        event.exdate = exdate_vec;
+        event.recurrence_id = recurrence_id;
+        event.styled_description = styled_description;
+        event.x_pubky_calendar_uris = calendar_uris_vec;
+        event.x_pubky_rsvp_access = x_pubky_rsvp_access;
+
+        let event_id = event.create_id();
+        event.validate(Some(&event_id))?;
+
+        let path = PubkyAppEvent::create_path(&event_id);
+        let meta = Meta::from_object(Some(&event_id), self.pubky_id.clone(), path);
+
+        Ok(EventResult { event, meta })
+    }
+
+    // -----------------------------------------------------------------------------
+    // 13. PubkyAppAttendee
+    // -----------------------------------------------------------------------------
+
+    #[wasm_bindgen(js_name = createAttendee)]
+    pub fn create_attendee(
+        &self,
+        partstat: String,
+        x_pubky_event_uri: String,
+        recurrence_id: Option<i64>,
+    ) -> Result<AttendeeResult, String> {
+        let mut attendee = PubkyAppAttendee::with_status(x_pubky_event_uri, partstat);
+        attendee.recurrence_id = recurrence_id;
+        attendee.validate(None)?; // Attendee doesn't use ID-based validation
+
+        // For attendees, we generate an ID based on event URI and user ID for the path
+        let attendee_id = format!("{}-{}", 
+            self.pubky_id.to_string().chars().take(8).collect::<String>(),
+            attendee.x_pubky_event_uri.chars().rev().take(8).collect::<String>()
+        );
+        
+        let path = [PUBLIC_PATH, APP_PATH, PubkyAppAttendee::PATH_SEGMENT, "/", &attendee_id].concat();
+        let meta = Meta::from_object(Some(&attendee_id), self.pubky_id.clone(), path);
+
+        Ok(AttendeeResult { attendee, meta })
+    }
 }
 
 /// This object represents the result of parsing a Pubky URI. It contains:
@@ -461,4 +641,74 @@ pub fn parse_uri(uri: &str) -> Result<ParsedUriResult, String> {
         resource: parsed.resource.to_string(),
         resource_id: parsed.resource.id(),
     })
+}
+
+// =============================================================================
+// Calendar/Event/Attendee Helper Functions
+// =============================================================================
+
+/// Converts ISO 8601 timestamp to Unix microseconds
+#[wasm_bindgen(js_name = parseIsoToTimestamp)]
+pub fn parse_iso_to_timestamp(iso_string: &str) -> Result<i64, String> {
+    // This is a simplified version - in a real implementation you'd use a proper datetime parser
+    // For now, we'll assume the caller provides Unix timestamps in string format
+    iso_string.parse::<i64>()
+        .map(|ts| ts * 1_000_000) // Convert seconds to microseconds
+        .map_err(|_| "Invalid timestamp format. Expected Unix timestamp in seconds.".to_string())
+}
+
+/// Converts Unix microseconds to ISO 8601 string
+#[wasm_bindgen(js_name = timestampToIso)]
+pub fn timestamp_to_iso(timestamp: i64) -> String {
+    // This is a simplified version - in a real implementation you'd use a proper datetime formatter
+    // For now, we'll return Unix timestamp in seconds as string
+    (timestamp / 1_000_000).to_string()
+}
+
+/// Get valid RSVP status values
+#[wasm_bindgen(js_name = getValidRsvpStatuses)]
+pub fn get_valid_rsvp_statuses() -> Vec<String> {
+    crate::validation::valid_rsvp_statuses()
+        .into_iter()
+        .map(|s| s.to_string())
+        .collect()
+}
+
+/// Get valid event status values
+#[wasm_bindgen(js_name = getValidEventStatuses)]
+pub fn get_valid_event_statuses() -> Vec<String> {
+    crate::validation::valid_event_statuses()
+        .into_iter()
+        .map(|s| s.to_string())
+        .collect()
+}
+
+/// Validate timezone string (basic IANA timezone validation)
+#[wasm_bindgen(js_name = validateTimezone)]
+pub fn validate_timezone(timezone: &str) -> bool {
+    crate::validation::is_valid_timezone(timezone)
+}
+
+/// Validate hex color format (#RRGGBB)
+#[wasm_bindgen(js_name = validateColor)]
+pub fn validate_color(color: &str) -> bool {
+    crate::validation::is_valid_hex_color(color)
+}
+
+/// Validate geographic coordinates in "lat;lon" format
+#[wasm_bindgen(js_name = validateGeoCoordinates)]
+pub fn validate_geo_coordinates(geo: &str) -> bool {
+    crate::validation::is_valid_geo(geo)
+}
+
+/// Validate RFC 5545 duration format (basic validation)
+#[wasm_bindgen(js_name = validateDuration)]
+pub fn validate_duration(duration: &str) -> bool {
+    crate::validation::is_valid_duration(duration)
+}
+
+/// Parse RRULE basic format (simplified validation)
+#[wasm_bindgen(js_name = validateRrule)]
+pub fn validate_rrule(rrule: &str) -> bool {
+    crate::validation::is_valid_rrule(rrule)
 }

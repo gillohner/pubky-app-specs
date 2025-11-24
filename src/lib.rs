@@ -4,11 +4,15 @@ pub mod traits;
 mod types;
 mod uri_parser;
 mod utils;
+mod validation;
 
 // Re-export domain types
 pub use common::{APP_PATH, PROTOCOL, PUBLIC_PATH, VERSION};
+pub use models::attendee::PubkyAppAttendee;
 pub use models::blob::PubkyAppBlob;
 pub use models::bookmark::PubkyAppBookmark;
+pub use models::calendar::{PubkyAppCalendar, StyledDescription};
+pub use models::event::{Organizer, PubkyAppEvent};
 pub use models::feed::{PubkyAppFeed, PubkyAppFeedLayout, PubkyAppFeedReach, PubkyAppFeedSort};
 pub use models::file::PubkyAppFile;
 pub use models::follow::PubkyAppFollow;
@@ -21,6 +25,7 @@ pub use models::PubkyAppObject;
 pub use types::PubkyId;
 pub use uri_parser::{ParsedUri, Resource};
 pub use utils::*;
+pub use validation::*;
 
 // Our WASM module
 #[cfg(target_arch = "wasm32")]
