@@ -2,7 +2,7 @@ use crate::{
     common::timestamp,
     models::calendar::StyledDescription,
     traits::{HasIdPath, TimestampId, Validatable},
-    validation::{is_valid_duration, is_valid_geo, is_valid_timezone},
+    validation::{is_valid_datetime, is_valid_duration, is_valid_geo, is_valid_timezone},
     APP_PATH, PUBLIC_PATH,
 };
 use serde::{Deserialize, Serialize};
@@ -66,12 +66,14 @@ pub struct PubkyAppEvent {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen(skip))]
     pub uid: String,                    // Globally unique identifier
     pub dtstamp: i64,                   // Creation/last-modified timestamp (Unix microseconds)
-    pub dtstart: i64,                   // Start timestamp (Unix microseconds)
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen(skip))]
+    pub dtstart: String,                // Start date-time in ISO 8601 format (YYYY-MM-DDTHH:MM:SS)
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen(skip))]
     pub summary: String,                // Event title/subject
 
     // RFC 5545 - Time & Duration
-    pub dtend: Option<i64>,             // End timestamp (mutually exclusive with duration)
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen(skip))]
+    pub dtend: Option<String>,          // End date-time in ISO 8601 format (mutually exclusive with duration)
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen(skip))]
     pub duration: Option<String>,       // RFC 5545 duration format (mutually exclusive with dtend)
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen(skip))]
@@ -129,7 +131,7 @@ pub struct PubkyAppEvent {
 
 impl PubkyAppEvent {
     /// Creates a new `PubkyAppEvent` instance with required fields and sensible defaults.
-    pub fn new(uid: String, dtstart: i64, summary: String) -> Self {
+    pub fn new(uid: String, dtstart: String, summary: String) -> Self {
         let now = timestamp();
         Self {
             uid,
@@ -143,7 +145,6 @@ impl PubkyAppEvent {
             dtend_tzid: None,
             description: None,
             status: Some("CONFIRMED".to_string()),
-            organizer: None,
             categories: None,
             location: None,
             geo: None,
@@ -164,7 +165,7 @@ impl PubkyAppEvent {
     }
 
     /// Helper method to create an event with an end time
-    pub fn with_end_time(mut self, dtend: i64) -> Self {
+    pub fn with_end_time(mut self, dtend: String) -> Self {
         self.dtend = Some(dtend);
         self.sanitize()
     }
@@ -193,12 +194,6 @@ impl PubkyAppEvent {
         self.sanitize()
     }
 
-    /// Helper method to add an organizer
-    pub fn with_organizer(mut self, organizer: Organizer) -> Self {
-        self.organizer = Some(organizer);
-        self.sanitize()
-    }
-
     /// Helper method to add categories
     pub fn with_categories(mut self, categories: Vec<String>) -> Self {
         self.categories = Some(categories);
@@ -217,6 +212,16 @@ impl PubkyAppEvent {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen(getter))]
     pub fn summary(&self) -> String {
         self.summary.clone()
+    }
+
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen(getter))]
+    pub fn dtstart(&self) -> String {
+        self.dtstart.clone()
+    }
+
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen(getter))]
+    pub fn dtend(&self) -> Option<String> {
+        self.dtend.clone()
     }
 
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen(getter))]
@@ -242,11 +247,6 @@ impl PubkyAppEvent {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen(getter))]
     pub fn status(&self) -> Option<String> {
         self.status.clone()
-    }
-
-    #[cfg_attr(target_arch = "wasm32", wasm_bindgen(getter))]
-    pub fn organizer(&self) -> Option<Organizer> {
-        self.organizer.clone()
     }
 
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen(getter))]
@@ -322,8 +322,14 @@ impl Json for PubkyAppEvent {}
 impl PubkyAppEvent {
     /// Creates a new `PubkyAppEvent` instance for WASM.
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen(constructor))]
-    pub fn new_wasm(uid: String, dtstart: i64, summary: String) -> Self {
+    pub fn new_wasm(uid: String, dtstart: String, summary: String) -> Self {
         Self::new(uid, dtstart, summary)
+    }
+
+    /// Generates a unique timestamp-based ID for the event
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen(js_name = createId))]
+    pub fn create_id_wasm(&self) -> String {
+        self.create_id()
     }
 }
 
@@ -344,6 +350,12 @@ impl Validatable for PubkyAppEvent {
         
         // Sanitize summary
         let summary = self.summary.trim().chars().take(MAX_SUMMARY_LENGTH).collect();
+        
+        // Sanitize dtstart (trim whitespace, validate format)
+        let dtstart = self.dtstart.trim().to_string();
+        
+        // Sanitize dtend (trim whitespace, validate format)
+        let dtend = self.dtend.map(|dt| dt.trim().to_string());
         
         // Sanitize description
         let description = self.description.map(|desc| {
@@ -450,15 +462,14 @@ impl Validatable for PubkyAppEvent {
         Self {
             uid,
             dtstamp: self.dtstamp,
-            dtstart: self.dtstart,
+            dtstart,
             summary,
-            dtend: self.dtend,
+            dtend,
             duration,
             dtstart_tzid,
             dtend_tzid,
             description,
             status,
-            organizer: self.organizer,
             categories,
             location,
             geo,
@@ -495,17 +506,19 @@ impl Validatable for PubkyAppEvent {
             return Err("Validation Error: Event summary length must be between 1 and 500 characters".into());
         }
 
-        // Validate start time is not in the far future or past
-        let now = timestamp();
-        let one_hundred_years = 100 * 365 * 24 * 60 * 60 * 1_000_000i64; // 100 years in microseconds
-        
-        if self.dtstart < now - one_hundred_years || self.dtstart > now + one_hundred_years {
-            return Err("Validation Error: Event start time is invalid".into());
+        // Validate dtstart format
+        if !is_valid_datetime(&self.dtstart) {
+            return Err("Validation Error: Invalid start date-time format. Must be ISO 8601 (YYYY-MM-DDTHH:MM:SS)".into());
         }
 
-        // Validate that dtend is after dtstart (if both present)
-        if let Some(dtend) = self.dtend {
-            if dtend <= self.dtstart {
+        // Validate dtend format if present
+        if let Some(ref dtend) = self.dtend {
+            if !is_valid_datetime(dtend) {
+                return Err("Validation Error: Invalid end date-time format. Must be ISO 8601 (YYYY-MM-DDTHH:MM:SS)".into());
+            }
+            
+            // Validate that dtend is after dtstart
+            if dtend <= &self.dtstart {
                 return Err("Validation Error: Event end time must be after start time".into());
             }
         }
@@ -566,17 +579,17 @@ impl Validatable for PubkyAppEvent {
 mod tests {
     use super::*;
     use crate::traits::Validatable;
-    use super::Organizer;
 
     #[test]
     fn test_new_simple() {
         let event = PubkyAppEvent::new(
             "event-123".to_string(),
-            timestamp() + 3600_000_000, // 1 hour from now
+            "2025-12-01T10:00:00".to_string(),
             "Team Meeting".to_string(),
         );
 
         assert_eq!(event.uid, "event-123");
+        assert_eq!(event.dtstart, "2025-12-01T10:00:00");
         assert_eq!(event.summary, "Team Meeting");
         assert_eq!(event.status, Some("CONFIRMED".to_string()));
         assert_eq!(event.x_pubky_rsvp_access, Some("PUBLIC".to_string()));
@@ -589,27 +602,23 @@ mod tests {
 
     #[test]
     fn test_new_complex() {
-        let organizer = Organizer {
-            name: "John Doe".to_string(),
-        };
-        
         let event = PubkyAppEvent::new(
             "complex-event-456".to_string(),
-            timestamp() + 7200_000_000, // 2 hours from now
+            "2025-12-01T14:00:00".to_string(),
             "Annual Conference".to_string(),
         )
-        .with_end_time(timestamp() + 28800_000_000) // 8 hours from now
+        .with_end_time("2025-12-01T18:00:00".to_string())
         .with_description("Annual company conference with presentations".to_string())
-        .with_organizer(organizer)
         .with_categories(vec!["conference".to_string(), "company".to_string()])
         .with_location("Convention Center".to_string())
         .with_geo("47.3769;8.5417".to_string()); // Zurich coordinates
 
         assert_eq!(event.uid, "complex-event-456");
+        assert_eq!(event.dtstart, "2025-12-01T14:00:00");
+        assert_eq!(event.dtend, Some("2025-12-01T18:00:00".to_string()));
         assert_eq!(event.summary, "Annual Conference");
         assert_eq!(event.location, Some("Convention Center".to_string()));
         assert_eq!(event.geo, Some("47.3769;8.5417".to_string()));
-        assert_eq!(event.organizer.as_ref().unwrap().name, "John Doe");
         assert_eq!(event.categories, Some(vec!["conference".to_string(), "company".to_string()]));
     }
 
@@ -617,7 +626,7 @@ mod tests {
     fn test_create_id() {
         let event = PubkyAppEvent::new(
             "event-123".to_string(),
-            timestamp() + 3600_000_000,
+            "2025-12-01T10:00:00".to_string(),
             "Team Meeting".to_string(),
         );
 
@@ -632,7 +641,7 @@ mod tests {
     fn test_create_path() {
         let event = PubkyAppEvent::new(
             "event-123".to_string(),
-            timestamp() + 3600_000_000,
+            "2025-12-01T10:00:00".to_string(),
             "Team Meeting".to_string(),
         );
 
@@ -651,7 +660,7 @@ mod tests {
     fn test_validate_valid() {
         let event = PubkyAppEvent::new(
             "event-123".to_string(),
-            timestamp() + 3600_000_000,
+            "2025-12-01T10:00:00".to_string(),
             "Team Meeting".to_string(),
         );
 
@@ -664,7 +673,7 @@ mod tests {
     fn test_validate_invalid_uid() {
         let event = PubkyAppEvent::new(
             "".to_string(), // Empty UID
-            timestamp() + 3600_000_000,
+            "2025-12-01T10:00:00".to_string(),
             "Team Meeting".to_string(),
         );
 
@@ -678,7 +687,7 @@ mod tests {
     fn test_validate_invalid_summary() {
         let event = PubkyAppEvent::new(
             "event-123".to_string(),
-            timestamp() + 3600_000_000,
+            "2025-12-01T10:00:00".to_string(),
             "".to_string(), // Empty summary
         );
 
@@ -690,14 +699,11 @@ mod tests {
 
     #[test]
     fn test_validate_invalid_time_order() {
-        let start_time = timestamp() + 3600_000_000;
-        let end_time = start_time - 1800_000_000; // End before start
-        
         let event = PubkyAppEvent::new(
             "event-123".to_string(),
-            start_time,
+            "2025-12-01T10:00:00".to_string(),
             "Team Meeting".to_string(),
-        ).with_end_time(end_time);
+        ).with_end_time("2025-12-01T09:00:00".to_string()); // End before start
 
         let id = event.create_id();
         let result = event.validate(Some(&id));
@@ -709,9 +715,9 @@ mod tests {
     fn test_validate_both_dtend_and_duration() {
         let mut event = PubkyAppEvent::new(
             "event-123".to_string(),
-            timestamp() + 3600_000_000,
+            "2025-12-01T10:00:00".to_string(),
             "Team Meeting".to_string(),
-        ).with_end_time(timestamp() + 5400_000_000);
+        ).with_end_time("2025-12-01T11:00:00".to_string());
         
         // Set both dtend and duration (invalid)
         event.duration = Some("PT1H".to_string());
@@ -724,31 +730,25 @@ mod tests {
 
     #[test]
     fn test_sanitize() {
-        let organizer = Organizer {
-            name: "  John Doe  ".to_string(),
-        };
-        
         let event = PubkyAppEvent::new(
             "  event-123  ".to_string(), // uid
-            timestamp() + 3600_000_000, // dtstart
+            "  2025-12-01T10:00:00  ".to_string(), // dtstart
             "  Team Meeting  ".to_string(), // summary
         )
         .with_description("  Meeting description  ".to_string())
         .with_status("  confirmed  ".to_string()) // lowercase
-        .with_organizer(organizer)
         .with_categories(vec!["  MEETING  ".to_string(), " WORK ".to_string()])
         .with_location("  Conference Room  ".to_string())
         .with_geo("  47.3769;8.5417  ".to_string());
 
         assert_eq!(event.uid, "event-123");
+        assert_eq!(event.dtstart, "2025-12-01T10:00:00");
         assert_eq!(event.summary, "Team Meeting");
         assert_eq!(event.description, Some("Meeting description".to_string()));
         assert_eq!(event.status, Some("CONFIRMED".to_string()));
         assert_eq!(event.categories, Some(vec!["meeting".to_string(), "work".to_string()]));
         assert_eq!(event.location, Some("Conference Room".to_string()));
         assert_eq!(event.geo, Some("47.3769;8.5417".to_string()));
-        // Note: dtstart_tzid and other fields that don't have builder methods would need to be set manually
-        // For this test, we'll focus on the fields that are being tested
     }
 
     #[test]
@@ -788,26 +788,23 @@ mod tests {
         let event_json = r##"
         {
             "uid": "event-123",
-            "dtstamp": 1700000000,
-            "dtstart": 1700010000,
+            "dtstamp": 1700000000000,
+            "dtstart": "2025-12-01T10:00:00",
             "summary": "Team Meeting",
-            "dtend": 1700013600,
+            "dtend": "2025-12-01T11:00:00",
             "duration": null,
             "dtstart_tzid": "Europe/Zurich",
             "dtend_tzid": "Europe/Zurich",
             "description": "Weekly team sync meeting",
             "status": "CONFIRMED",
-            "organizer": {
-                "name": "John Doe"
-            },
             "categories": ["meeting", "work"],
             "location": "Conference Room A",
             "geo": "47.3769;8.5417",
             "image_uri": null,
             "url": "https://example.com/meeting",
             "sequence": 0,
-            "last_modified": 1700000000,
-            "created": 1700000000,
+            "last_modified": 1700000000000,
+            "created": 1700000000000,
             "rrule": null,
             "rdate": null,
             "exdate": null,
@@ -820,17 +817,17 @@ mod tests {
 
         let event = PubkyAppEvent::new(
             "event-123".to_string(),
-            1700010000,
+            "2025-12-01T10:00:00".to_string(),
             "Team Meeting".to_string(),
-        ).with_end_time(1700013600);
+        ).with_end_time("2025-12-01T11:00:00".to_string());
         let id = event.create_id();
 
         let blob = event_json.as_bytes();
         let event_parsed = <PubkyAppEvent as Validatable>::try_from(blob, &id).unwrap();
 
         assert_eq!(event_parsed.uid, "event-123");
+        assert_eq!(event_parsed.dtstart, "2025-12-01T10:00:00");
         assert_eq!(event_parsed.summary, "Team Meeting");
         assert_eq!(event_parsed.location, Some("Conference Room A".to_string()));
-        assert_eq!(event_parsed.organizer.as_ref().unwrap().name, "John Doe");
     }
 }

@@ -133,6 +133,117 @@ pub fn is_valid_duration(duration: &str) -> bool {
     true
 }
 
+/// Validates ISO 8601 date-time format (YYYY-MM-DDTHH:MM:SS)
+/// Accepts both basic formats and allows optional fractional seconds
+/// 
+/// # Examples
+/// ```
+/// use pubky_app_specs::is_valid_datetime;
+/// 
+/// assert!(is_valid_datetime("2025-11-29T22:35:00"));
+/// assert!(is_valid_datetime("2025-01-01T00:00:00"));
+/// assert!(!is_valid_datetime("2025-13-01T00:00:00")); // Invalid month
+/// assert!(!is_valid_datetime("2025-11-29 22:35:00")); // Missing T separator
+/// ```
+pub fn is_valid_datetime(datetime: &str) -> bool {
+    // Basic format: YYYY-MM-DDTHH:MM:SS
+    // Allow optional fractional seconds: YYYY-MM-DDTHH:MM:SS.sss
+    
+    if datetime.len() < 19 {
+        return false; // Minimum length for YYYY-MM-DDTHH:MM:SS
+    }
+    
+    // Split by 'T' to get date and time parts
+    let parts: Vec<&str> = datetime.split('T').collect();
+    if parts.len() != 2 {
+        return false;
+    }
+    
+    let date_part = parts[0];
+    let time_part = parts[1];
+    
+    // Validate date part (YYYY-MM-DD)
+    let date_components: Vec<&str> = date_part.split('-').collect();
+    if date_components.len() != 3 {
+        return false;
+    }
+    
+    // Parse year
+    let year = match date_components[0].parse::<i32>() {
+        Ok(y) if y >= 1000 && y <= 9999 => y,
+        _ => return false,
+    };
+    
+    // Parse month
+    let month = match date_components[1].parse::<u32>() {
+        Ok(m) if (1..=12).contains(&m) => m,
+        _ => return false,
+    };
+    
+    // Parse day
+    let day = match date_components[2].parse::<u32>() {
+        Ok(d) if (1..=31).contains(&d) => d,
+        _ => return false,
+    };
+    
+    // Basic month-day validation
+    let max_day = match month {
+        2 => {
+            // Leap year check
+            if (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0) {
+                29
+            } else {
+                28
+            }
+        },
+        4 | 6 | 9 | 11 => 30,
+        _ => 31,
+    };
+    
+    if day > max_day {
+        return false;
+    }
+    
+    // Validate time part (HH:MM:SS or HH:MM:SS.sss)
+    let time_components: Vec<&str> = time_part.split(':').collect();
+    if time_components.len() != 3 {
+        return false;
+    }
+    
+    // Parse hour
+    match time_components[0].parse::<u32>() {
+        Ok(h) if h <= 23 => {},
+        _ => return false,
+    }
+    
+    // Parse minute
+    match time_components[1].parse::<u32>() {
+        Ok(m) if m <= 59 => {},
+        _ => return false,
+    }
+    
+    // Parse second (may have fractional part)
+    let second_str = time_components[2];
+    let _second = if second_str.contains('.') {
+        // Has fractional seconds
+        let sec_parts: Vec<&str> = second_str.split('.').collect();
+        if sec_parts.len() != 2 {
+            return false;
+        }
+        match sec_parts[0].parse::<u32>() {
+            Ok(s) if s <= 59 => s,
+            _ => return false,
+        }
+    } else {
+        match second_str.parse::<u32>() {
+            Ok(s) if s <= 59 => s,
+            _ => return false,
+        }
+    };
+    
+    true
+}
+
 /// Validates RFC 5545 RRULE format (simplified)
 /// 
 /// # Examples
@@ -241,6 +352,28 @@ mod tests {
         assert!(!is_valid_duration("PT1H30"));    // Missing unit
         assert!(!is_valid_duration("PT1X30M"));   // Invalid char
         assert!(!is_valid_duration(""));          // Empty
+    }
+
+    #[test]
+    fn test_is_valid_datetime() {
+        // Valid datetimes
+        assert!(is_valid_datetime("2025-11-29T22:35:00"));
+        assert!(is_valid_datetime("2025-01-01T00:00:00"));
+        assert!(is_valid_datetime("2024-12-31T23:59:59"));
+        assert!(is_valid_datetime("2024-02-29T12:00:00")); // Leap year
+        
+        // Invalid datetimes
+        assert!(!is_valid_datetime("2025-13-01T00:00:00")); // Invalid month
+        assert!(!is_valid_datetime("2025-00-01T00:00:00")); // Invalid month
+        assert!(!is_valid_datetime("2025-11-32T00:00:00")); // Invalid day
+        assert!(!is_valid_datetime("2025-11-00T00:00:00")); // Invalid day
+        assert!(!is_valid_datetime("2025-02-29T00:00:00")); // Not a leap year
+        assert!(!is_valid_datetime("2025-11-29 22:35:00")); // Missing T separator
+        assert!(!is_valid_datetime("2025-11-29T24:00:00")); // Invalid hour
+        assert!(!is_valid_datetime("2025-11-29T22:60:00")); // Invalid minute
+        assert!(!is_valid_datetime("2025-11-29T22:35:60")); // Invalid second
+        assert!(!is_valid_datetime("25-11-29T22:35:00"));   // Invalid year format
+        assert!(!is_valid_datetime(""));                     // Empty
     }
 
     #[test]

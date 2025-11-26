@@ -440,15 +440,14 @@ impl PubkySpecsBuilder {
     pub fn create_event(
         &self,
         uid: String,
-        dtstart: i64,
+        dtstart: String,
         summary: String,
-        dtend: Option<i64>,
+        dtend: Option<String>,
         duration: Option<String>,
         dtstart_tzid: Option<String>,
         dtend_tzid: Option<String>,
         description: Option<String>,
         status: Option<String>,
-        organizer: Option<Organizer>,
         categories: JsValue, // JS array of strings or null
         location: Option<String>,
         geo: Option<String>,
@@ -503,9 +502,6 @@ impl PubkySpecsBuilder {
         }
         if let Some(status_val) = status {
             event = event.with_status(status_val);
-        }
-        if let Some(organizer_val) = organizer {
-            event = event.with_organizer(organizer_val);
         }
         if let Some(categories_val) = categories_vec {
             event = event.with_categories(categories_val);

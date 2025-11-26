@@ -441,9 +441,9 @@ mod tests {
         // Create an event with the same data as in the JSON to get the correct ID
         let event = PubkyAppEvent::new(
             "event-123".to_string(),
-            1627849800,
+            "2025-12-01T10:00:00".to_string(),
             "Team Meeting".to_string(),
-        ).with_end_time(1627851600);
+        ).with_end_time("2025-12-01T10:30:00".to_string());
         
         // Use the actual generated ID
         let event_id = event.create_id();
@@ -453,26 +453,23 @@ mod tests {
         );
         let event_json = r##"{
             "uid": "event-123",
-            "dtstamp": 1627849731,
-            "dtstart": 1627849800,
+            "dtstamp": 1627849731000,
+            "dtstart": "2025-12-01T10:00:00",
             "summary": "Team Meeting",
-            "dtend": 1627851600,
+            "dtend": "2025-12-01T10:30:00",
             "duration": null,
             "dtstart_tzid": "Europe/Zurich",
             "dtend_tzid": "Europe/Zurich",
             "description": "Weekly team sync",
             "status": "CONFIRMED",
-            "organizer": {
-                "name": "John Doe"
-            },
             "categories": ["meeting", "work"],
             "location": "Conference Room A",
             "geo": "47.3769;8.5417",
             "image_uri": null,
             "url": "https://example.com/meeting",
             "sequence": 0,
-            "last_modified": 1627849731,
-            "created": 1627849731,
+            "last_modified": 1627849731000,
+            "created": 1627849731000,
             "rrule": null,
             "rdate": null,
             "exdate": null,
