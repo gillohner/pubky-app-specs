@@ -7,7 +7,7 @@ mod utils;
 mod validation;
 
 // Re-export domain types
-pub use common::{APP_PATH, PROTOCOL, PUBLIC_PATH, VERSION};
+pub use common::{APP_PATH, EVENTKY_PATH, PROTOCOL, PUBLIC_PATH, VERSION};
 pub use models::attendee::PubkyAppAttendee;
 pub use models::blob::PubkyAppBlob;
 pub use models::bookmark::PubkyAppBookmark;

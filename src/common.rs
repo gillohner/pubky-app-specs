@@ -1,6 +1,7 @@
 pub static VERSION: &str = "0.4.0";
 pub static PUBLIC_PATH: &str = "/pub/";
 pub static APP_PATH: &str = "pubky.app/";
+pub static EVENTKY_PATH: &str = "eventky.pub/";
 pub static PROTOCOL: &str = "pubky://";
 
 // Define the maximum blob/file size (100 MB) in bytes.

@@ -2,7 +2,7 @@ use crate::{
     common::timestamp,
     traits::{HasIdPath, HashId, Validatable},
     validation::{is_valid_hex_color, is_valid_timezone},
-    APP_PATH, PUBLIC_PATH,
+    EVENTKY_PATH, PUBLIC_PATH,
 };
 use serde::{Deserialize, Serialize};
 use url::Url;
@@ -63,7 +63,7 @@ impl StyledDescription {
 }
 
 /// Calendar container - collection of events
-/// URI: /pub/pubky.app/calendars/:calendar_id
+/// URI: /pub/eventky.pub/calendars/:calendar_id
 /// Where calendar_id is a hash-based ID similar to feeds
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -214,7 +214,7 @@ impl HasIdPath for PubkyAppCalendar {
     const PATH_SEGMENT: &'static str = "calendars/";
 
     fn create_path(id: &str) -> String {
-        [PUBLIC_PATH, APP_PATH, Self::PATH_SEGMENT, id].concat()
+        [PUBLIC_PATH, EVENTKY_PATH, Self::PATH_SEGMENT, id].concat()
     }
 }
 
@@ -380,7 +380,7 @@ mod tests {
         let path = PubkyAppCalendar::create_path(&calendar_id);
 
         // Check if the path starts with the expected prefix
-        let prefix = format!("{}{}calendars/", PUBLIC_PATH, APP_PATH);
+        let prefix = format!("{}{}calendars/", PUBLIC_PATH, EVENTKY_PATH);
         assert!(path.starts_with(&prefix));
 
         let expected_path_len = prefix.len() + calendar_id.len();

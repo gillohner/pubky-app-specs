@@ -3,7 +3,7 @@ use crate::{
     models::calendar::StyledDescription,
     traits::{HasIdPath, TimestampId, Validatable},
     validation::{is_valid_datetime, is_valid_duration, is_valid_geo, is_valid_timezone},
-    APP_PATH, PUBLIC_PATH,
+    EVENTKY_PATH, PUBLIC_PATH,
 };
 use serde::{Deserialize, Serialize};
 use url::Url;
@@ -56,7 +56,7 @@ const VALID_STATUS: &[&str] = &["CONFIRMED", "TENTATIVE", "CANCELLED"];
 const VALID_RSVP_ACCESS: &[&str] = &["PUBLIC"];
 
 /// Event - a scheduled activity or occasion
-/// URI: /pub/pubky.app/events/:event_id
+/// URI: /pub/eventky.pub/events/:event_id
 /// Where event_id is a timestamp-based ID for chronological ordering
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -339,7 +339,7 @@ impl HasIdPath for PubkyAppEvent {
     const PATH_SEGMENT: &'static str = "events/";
 
     fn create_path(id: &str) -> String {
-        [PUBLIC_PATH, APP_PATH, Self::PATH_SEGMENT, id].concat()
+        [PUBLIC_PATH, EVENTKY_PATH, Self::PATH_SEGMENT, id].concat()
     }
 }
 
@@ -649,7 +649,7 @@ mod tests {
         let path = PubkyAppEvent::create_path(&event_id);
 
         // Check if the path starts with the expected prefix
-        let prefix = format!("{}{}events/", PUBLIC_PATH, APP_PATH);
+        let prefix = format!("{}{}events/", PUBLIC_PATH, EVENTKY_PATH);
         assert!(path.starts_with(&prefix));
 
         let expected_path_len = prefix.len() + event_id.len();

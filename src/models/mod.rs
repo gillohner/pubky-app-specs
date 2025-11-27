@@ -505,7 +505,7 @@ mod tests {
             "created_at": 1627849732,
             "last_modified": 1627849732,
             "recurrence_id": null,
-            "x_pubky_event_uri": "pubky://operrr8wsbpr3ue9d4qj41ge1kcc6r7fdiy6o3ugjrrhi4y77rdo/pub/pubky.app/events/01HCXB9P7QBVKM"
+            "x_pubky_event_uri": "pubky://operrr8wsbpr3ue9d4qj41ge1kcc6r7fdiy6o3ugjrrhi4y77rdo/pub/eventky.pub/events/01HCXB9P7QBVKM"
         }"##;
         let result = PubkyAppObject::from_uri(uri, attendee_json.as_bytes());
         assert!(

@@ -2,7 +2,7 @@ use crate::{
     traits::{HasIdPath, HasPath},
     PubkyAppAttendee, PubkyAppBlob, PubkyAppBookmark, PubkyAppCalendar, PubkyAppEvent, 
     PubkyAppFeed, PubkyAppFile, PubkyAppFollow, PubkyAppLastRead, PubkyAppMute, 
-    PubkyAppPost, PubkyAppTag, PubkyAppUser, PubkyId, APP_PATH, PROTOCOL, PUBLIC_PATH,
+    PubkyAppPost, PubkyAppTag, PubkyAppUser, PubkyId, APP_PATH, EVENTKY_PATH, PROTOCOL, PUBLIC_PATH,
 };
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
@@ -116,10 +116,14 @@ impl TryFrom<&str> for ParsedUri {
                 PUBLIC_PATH, segments[0], uri
             ));
         }
-        if segments[1] != APP_PATH.trim_matches('/') {
+        
+        // Accept either APP_PATH or EVENTKY_PATH
+        let app_path_trimmed = APP_PATH.trim_matches('/');
+        let eventky_path_trimmed = EVENTKY_PATH.trim_matches('/');
+        if segments[1] != app_path_trimmed && segments[1] != eventky_path_trimmed {
             return Err(format!(
-                "Expected app path '{}' but got '{}' in URI: {}",
-                APP_PATH, segments[1], uri
+                "Expected app path '{}' or '{}' but got '{}' in URI: {}",
+                APP_PATH, EVENTKY_PATH, segments[1], uri
             ));
         }
 

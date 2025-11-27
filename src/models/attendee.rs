@@ -1,7 +1,7 @@
 use crate::{
     common::timestamp,
     traits::{HasIdPath, HashId, Validatable},
-    APP_PATH, PUBLIC_PATH,
+    EVENTKY_PATH, PUBLIC_PATH,
 };
 use serde::{Deserialize, Serialize};
 use url::Url;
@@ -18,7 +18,7 @@ use utoipa::ToSchema;
 const VALID_PARTSTAT: &[&str] = &["NEEDS-ACTION", "ACCEPTED", "DECLINED", "TENTATIVE"];
 
 /// Attendee - an RSVP/participation record for an event (simplified for self-RSVP only)
-/// URI: /pub/pubky.app/attendees/:attendee_id
+/// URI: /pub/eventky.pub/attendees/:attendee_id
 /// Where attendee_id is a hash generated from the event URI (stored under the user's space)
 /// 
 /// This simplified version only supports direct RSVP by the user themselves,
@@ -150,7 +150,7 @@ impl HasIdPath for PubkyAppAttendee {
     const PATH_SEGMENT: &'static str = "attendees/";
     
     fn create_path(id: &str) -> String {
-        [PUBLIC_PATH, APP_PATH, Self::PATH_SEGMENT, id].concat()
+        [PUBLIC_PATH, EVENTKY_PATH, Self::PATH_SEGMENT, id].concat()
     }
 }
 
@@ -237,7 +237,7 @@ mod tests {
     use crate::traits::Validatable;
 
     fn sample_event_uri() -> String {
-        "pubky://user123/pub/pubky.app/events/01HCXB9P7QBVKM".to_string()
+        "pubky://user123/pub/eventky.pub/events/01HCXB9P7QBVKM".to_string()
     }
 
     #[test]
@@ -305,7 +305,7 @@ mod tests {
     fn test_create_path() {
         let test_id = "test_id_123";
         let path = PubkyAppAttendee::create_path(test_id);
-        let expected = format!("{}{}attendees/{}", PUBLIC_PATH, APP_PATH, test_id);
+        let expected = format!("{}{}attendees/{}", PUBLIC_PATH, EVENTKY_PATH, test_id);
         assert_eq!(path, expected);
     }
 
@@ -406,7 +406,7 @@ mod tests {
             "created_at": 1700000000,
             "last_modified": 1700000100,
             "recurrence_id": null,
-            "x_pubky_event_uri": "pubky://user123/pub/pubky.app/events/01HCXB9P7QBVKM"
+            "x_pubky_event_uri": "pubky://user123/pub/eventky.pub/events/01HCXB9P7QBVKM"
         }
         "##;
 
@@ -416,7 +416,7 @@ mod tests {
         assert_eq!(attendee_parsed.partstat, "ACCEPTED");
         assert_eq!(attendee_parsed.created_at, 1700000000);
         assert_eq!(attendee_parsed.last_modified, Some(1700000100));
-        assert_eq!(attendee_parsed.x_pubky_event_uri, "pubky://user123/pub/pubky.app/events/01HCXB9P7QBVKM");
+        assert_eq!(attendee_parsed.x_pubky_event_uri, "pubky://user123/pub/eventky.pub/events/01HCXB9P7QBVKM");
         assert!(attendee_parsed.recurrence_id.is_none());
     }
 
