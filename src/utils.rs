@@ -84,21 +84,21 @@ pub fn last_read_uri_builder(author_id: String) -> String {
     [PROTOCOL, &author_id, &last_read_path].concat()
 }
 
-/// Builds a Calendar URI of the form "pubky://<author_id>/pub/eventky.pub/calendars/<calendar_id>"
+/// Builds a Calendar URI of the form "pubky://<author_id>/pub/eventky.app/calendars/<calendar_id>"
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen(js_name = calendarUriBuilder))]
 pub fn calendar_uri_builder(author_id: String, calendar_id: String) -> String {
     let calendar_path = PubkyAppCalendar::create_path(&calendar_id);
     [PROTOCOL, &author_id, &calendar_path].concat()
 }
 
-/// Builds an Event URI of the form "pubky://<author_id>/pub/eventky.pub/events/<event_id>"
+/// Builds an Event URI of the form "pubky://<author_id>/pub/eventky.app/events/<event_id>"
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen(js_name = eventUriBuilder))]
 pub fn event_uri_builder(author_id: String, event_id: String) -> String {
     let event_path = PubkyAppEvent::create_path(&event_id);
     [PROTOCOL, &author_id, &event_path].concat()
 }
 
-/// Builds an Attendee URI of the form "pubky://<author_id>/pub/eventky.pub/attendees/<attendee_id>"
+/// Builds an Attendee URI of the form "pubky://<author_id>/pub/eventky.app/attendees/<attendee_id>"
 /// TODO: Make sure this is correct id
 /// Note: For attendees, the attendee_id is typically a hash of event_uri + user_id
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen(js_name = attendeeUriBuilder))]

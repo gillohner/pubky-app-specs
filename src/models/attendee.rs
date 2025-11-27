@@ -18,7 +18,7 @@ use utoipa::ToSchema;
 const VALID_PARTSTAT: &[&str] = &["NEEDS-ACTION", "ACCEPTED", "DECLINED", "TENTATIVE"];
 
 /// Attendee - an RSVP/participation record for an event (simplified for self-RSVP only)
-/// URI: /pub/eventky.pub/attendees/:attendee_id
+/// URI: /pub/eventky.app/attendees/:attendee_id
 /// Where attendee_id is a hash generated from the event URI (stored under the user's space)
 /// 
 /// This simplified version only supports direct RSVP by the user themselves,
@@ -237,7 +237,7 @@ mod tests {
     use crate::traits::Validatable;
 
     fn sample_event_uri() -> String {
-        "pubky://user123/pub/eventky.pub/events/01HCXB9P7QBVKM".to_string()
+        "pubky://user123/pub/eventky.app/events/01HCXB9P7QBVKM".to_string()
     }
 
     #[test]
@@ -406,7 +406,7 @@ mod tests {
             "created_at": 1700000000,
             "last_modified": 1700000100,
             "recurrence_id": null,
-            "x_pubky_event_uri": "pubky://user123/pub/eventky.pub/events/01HCXB9P7QBVKM"
+            "x_pubky_event_uri": "pubky://user123/pub/eventky.app/events/01HCXB9P7QBVKM"
         }
         "##;
 
@@ -416,7 +416,7 @@ mod tests {
         assert_eq!(attendee_parsed.partstat, "ACCEPTED");
         assert_eq!(attendee_parsed.created_at, 1700000000);
         assert_eq!(attendee_parsed.last_modified, Some(1700000100));
-        assert_eq!(attendee_parsed.x_pubky_event_uri, "pubky://user123/pub/eventky.pub/events/01HCXB9P7QBVKM");
+        assert_eq!(attendee_parsed.x_pubky_event_uri, "pubky://user123/pub/eventky.app/events/01HCXB9P7QBVKM");
         assert!(attendee_parsed.recurrence_id.is_none());
     }
 

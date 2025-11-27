@@ -56,7 +56,7 @@ const VALID_STATUS: &[&str] = &["CONFIRMED", "TENTATIVE", "CANCELLED"];
 const VALID_RSVP_ACCESS: &[&str] = &["PUBLIC"];
 
 /// Event - a scheduled activity or occasion
-/// URI: /pub/eventky.pub/events/:event_id
+/// URI: /pub/eventky.app/events/:event_id
 /// Where event_id is a timestamp-based ID for chronological ordering
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 #[derive(Serialize, Deserialize, Debug, Clone)]

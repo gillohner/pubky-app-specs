@@ -63,7 +63,7 @@ impl StyledDescription {
 }
 
 /// Calendar container - collection of events
-/// URI: /pub/eventky.pub/calendars/:calendar_id
+/// URI: /pub/eventky.app/calendars/:calendar_id
 /// Where calendar_id is a hash-based ID similar to feeds
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 #[derive(Serialize, Deserialize, Debug, Clone)]
