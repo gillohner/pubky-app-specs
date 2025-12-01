@@ -448,7 +448,6 @@ impl PubkySpecsBuilder {
         dtend_tzid: Option<String>,
         description: Option<String>,
         status: Option<String>,
-        categories: JsValue, // JS array of strings or null
         location: Option<String>,
         geo: Option<String>,
         image_uri: Option<String>,
@@ -462,12 +461,6 @@ impl PubkySpecsBuilder {
         x_pubky_rsvp_access: Option<String>,
     ) -> Result<EventResult, String> {
         // Convert JS arrays to Rust vectors
-        let categories_vec: Option<Vec<String>> = if categories.is_null() || categories.is_undefined() {
-            None
-        } else {
-            from_value(categories).map_err(|e| e.to_string())?
-        };
-
         let rdate_vec: Option<Vec<String>> = if rdate.is_null() || rdate.is_undefined() {
             None
         } else {
@@ -502,9 +495,6 @@ impl PubkySpecsBuilder {
         }
         if let Some(status_val) = status {
             event = event.with_status(status_val);
-        }
-        if let Some(categories_val) = categories_vec {
-            event = event.with_categories(categories_val);
         }
         
         // Set remaining fields manually for now (no builder methods yet)

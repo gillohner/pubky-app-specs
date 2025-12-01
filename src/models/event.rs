@@ -46,7 +46,6 @@ const MIN_SUMMARY_LENGTH: usize = 1;
 const MAX_SUMMARY_LENGTH: usize = 500;
 const MAX_DESCRIPTION_LENGTH: usize = 10_000;
 const MAX_LOCATION_LENGTH: usize = 1000;
-const MAX_CATEGORIES: usize = 20;
 const MAX_CALENDAR_URIS: usize = 10;
 
 /// Valid event status values
@@ -89,8 +88,6 @@ pub struct PubkyAppEvent {
     // TODO: Take care of organizer field later
     // #[cfg_attr(target_arch = "wasm32", wasm_bindgen(skip))]
     // pub organizer: Option<Organizer>,   // Event organizer (name from profile.json)
-    #[cfg_attr(target_arch = "wasm32", wasm_bindgen(skip))]
-    pub categories: Option<Vec<String>>, // Event categories/tags
     
     // RFC 5545 - Location
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen(skip))]
@@ -145,7 +142,6 @@ impl PubkyAppEvent {
             dtend_tzid: None,
             description: None,
             status: Some("CONFIRMED".to_string()),
-            categories: None,
             location: None,
             geo: None,
             image_uri: None,
@@ -191,12 +187,6 @@ impl PubkyAppEvent {
     /// Helper method to set the event status
     pub fn with_status(mut self, status: String) -> Self {
         self.status = Some(status);
-        self.sanitize()
-    }
-
-    /// Helper method to add categories
-    pub fn with_categories(mut self, categories: Vec<String>) -> Self {
-        self.categories = Some(categories);
         self.sanitize()
     }
 }
@@ -247,11 +237,6 @@ impl PubkyAppEvent {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen(getter))]
     pub fn status(&self) -> Option<String> {
         self.status.clone()
-    }
-
-    #[cfg_attr(target_arch = "wasm32", wasm_bindgen(getter))]
-    pub fn categories(&self) -> Option<Vec<String>> {
-        self.categories.clone()
     }
 
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen(getter))]
@@ -387,15 +372,6 @@ impl Validatable for PubkyAppEvent {
             }
         });
         
-        // Sanitize categories
-        let categories = self.categories.map(|cats| {
-            cats.into_iter()
-                .take(MAX_CATEGORIES)
-                .map(|cat| cat.trim().to_lowercase())
-                .filter(|cat| !cat.is_empty())
-                .collect::<Vec<_>>()
-        }).filter(|cats| !cats.is_empty());
-        
         // Sanitize URIs (image_uri, url, calendar_uris)
         let image_uri = self.image_uri.and_then(|uri| {
             match Url::parse(&uri.trim()) {
@@ -470,7 +446,6 @@ impl Validatable for PubkyAppEvent {
             dtend_tzid,
             description,
             status,
-            categories,
             location,
             geo,
             image_uri,
@@ -556,13 +531,6 @@ impl Validatable for PubkyAppEvent {
             }
         }
 
-        // Validate categories count
-        if let Some(cats) = &self.categories {
-            if cats.len() > MAX_CATEGORIES {
-                return Err("Validation Error: Too many event categories".into());
-            }
-        }
-
         // Validate calendar URIs count
         if let Some(cal_uris) = &self.x_pubky_calendar_uris {
             if cal_uris.len() > MAX_CALENDAR_URIS {
@@ -609,7 +577,6 @@ mod tests {
         )
         .with_end_time("2025-12-01T18:00:00".to_string())
         .with_description("Annual company conference with presentations".to_string())
-        .with_categories(vec!["conference".to_string(), "company".to_string()])
         .with_location("Convention Center".to_string())
         .with_geo("47.3769;8.5417".to_string()); // Zurich coordinates
 
@@ -619,7 +586,6 @@ mod tests {
         assert_eq!(event.summary, "Annual Conference");
         assert_eq!(event.location, Some("Convention Center".to_string()));
         assert_eq!(event.geo, Some("47.3769;8.5417".to_string()));
-        assert_eq!(event.categories, Some(vec!["conference".to_string(), "company".to_string()]));
     }
 
     #[test]
@@ -737,7 +703,6 @@ mod tests {
         )
         .with_description("  Meeting description  ".to_string())
         .with_status("  confirmed  ".to_string()) // lowercase
-        .with_categories(vec!["  MEETING  ".to_string(), " WORK ".to_string()])
         .with_location("  Conference Room  ".to_string())
         .with_geo("  47.3769;8.5417  ".to_string());
 
@@ -746,7 +711,6 @@ mod tests {
         assert_eq!(event.summary, "Team Meeting");
         assert_eq!(event.description, Some("Meeting description".to_string()));
         assert_eq!(event.status, Some("CONFIRMED".to_string()));
-        assert_eq!(event.categories, Some(vec!["meeting".to_string(), "work".to_string()]));
         assert_eq!(event.location, Some("Conference Room".to_string()));
         assert_eq!(event.geo, Some("47.3769;8.5417".to_string()));
     }
@@ -797,7 +761,6 @@ mod tests {
             "dtend_tzid": "Europe/Zurich",
             "description": "Weekly team sync meeting",
             "status": "CONFIRMED",
-            "categories": ["meeting", "work"],
             "location": "Conference Room A",
             "geo": "47.3769;8.5417",
             "image_uri": null,

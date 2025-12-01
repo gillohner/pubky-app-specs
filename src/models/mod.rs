@@ -462,7 +462,6 @@ mod tests {
             "dtend_tzid": "Europe/Zurich",
             "description": "Weekly team sync",
             "status": "CONFIRMED",
-            "categories": ["meeting", "work"],
             "location": "Conference Room A",
             "geo": "47.3769;8.5417",
             "image_uri": null,
