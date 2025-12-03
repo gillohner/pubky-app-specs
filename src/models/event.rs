@@ -113,7 +113,8 @@ pub struct PubkyAppEvent {
     pub rdate: Option<Vec<String>>,     // Additional recurrence dates
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen(skip))]
     pub exdate: Option<Vec<String>>,    // Excluded recurrence dates
-    pub recurrence_id: Option<i64>,     // Identifies specific recurrence instance
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen(skip))]
+    pub recurrence_id: Option<String>,  // ISO 8601 datetime of specific recurrence instance
 
     // RFC 9073 - Rich Content
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen(skip))]

@@ -1,6 +1,7 @@
 use crate::{
     common::timestamp,
     traits::{HasIdPath, HashId, Validatable},
+    validation::is_valid_datetime,
     EVENTKY_PATH, PUBLIC_PATH,
 };
 use serde::{Deserialize, Serialize};
@@ -34,7 +35,8 @@ pub struct PubkyAppAttendee {
     pub last_modified: Option<i64>,    // Last modification timestamp (Unix microseconds)
 
     // RFC 5545 - Recurrence Support
-    pub recurrence_id: Option<i64>,     // For recurring events, specifies which instance
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen(skip))]
+    pub recurrence_id: Option<String>,  // For recurring events, ISO 8601 datetime of specific instance
 
     // Pubky Extensions
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen(skip))]
@@ -217,13 +219,13 @@ impl Validatable for PubkyAppAttendee {
             }
         }
 
-        // Validate recurrence_id (if present, should be reasonable)
-        if let Some(recurrence_id) = self.recurrence_id {
-            let now = timestamp();
-            let one_hundred_years = 100 * 365 * 24 * 60 * 60 * 1_000_000i64; // 100 years in microseconds
-            
-            if recurrence_id < now - one_hundred_years || recurrence_id > now + one_hundred_years {
-                return Err("Validation Error: Recurrence ID timestamp is invalid".into());
+        // Validate recurrence_id (if present, should be valid ISO 8601)
+        if let Some(ref recurrence_id) = self.recurrence_id {
+            if recurrence_id.trim().is_empty() {
+                return Err("Validation Error: Recurrence ID cannot be empty".into());
+            }
+            if !is_valid_datetime(recurrence_id) {
+                return Err("Validation Error: Recurrence ID must be a valid ISO 8601 datetime".into());
             }
         }
 
@@ -369,12 +371,20 @@ mod tests {
     #[test]
     fn test_validate_invalid_recurrence_id() {
         let mut attendee = PubkyAppAttendee::accepted(sample_event_uri());
-        let very_old_timestamp = -2_000_000_000_000_000i64; // Way before Unix epoch, outside 100-year range
-        attendee.recurrence_id = Some(very_old_timestamp);
+        attendee.recurrence_id = Some("invalid-datetime".to_string());
         
         let result = attendee.validate(None);
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("Recurrence ID timestamp is invalid"));
+        assert!(result.unwrap_err().contains("Recurrence ID must be a valid ISO 8601 datetime"));
+    }
+
+    #[test]
+    fn test_validate_valid_recurrence_id() {
+        let mut attendee = PubkyAppAttendee::accepted(sample_event_uri());
+        attendee.recurrence_id = Some("2024-01-15T10:00:00".to_string());
+        
+        let result = attendee.validate(None);
+        assert!(result.is_ok());
     }
 
     #[test]

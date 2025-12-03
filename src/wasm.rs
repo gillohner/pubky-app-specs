@@ -455,7 +455,7 @@ impl PubkySpecsBuilder {
         rrule: Option<String>,
         rdate: JsValue, // JS array of strings or null
         exdate: JsValue, // JS array of strings or null
-        recurrence_id: Option<i64>,
+        recurrence_id: Option<String>,
         styled_description: Option<StyledDescription>,
         x_pubky_calendar_uris: JsValue, // JS array of strings or null
         x_pubky_rsvp_access: Option<String>,
@@ -529,7 +529,7 @@ impl PubkySpecsBuilder {
         &self,
         partstat: String,
         x_pubky_event_uri: String,
-        recurrence_id: Option<i64>,
+        recurrence_id: Option<String>,
     ) -> Result<AttendeeResult, String> {
         let mut attendee = PubkyAppAttendee::with_status(x_pubky_event_uri, partstat);
         attendee.recurrence_id = recurrence_id;
@@ -541,7 +541,7 @@ impl PubkySpecsBuilder {
             attendee.x_pubky_event_uri.chars().rev().take(8).collect::<String>()
         );
         
-        let path = [PUBLIC_PATH, APP_PATH, PubkyAppAttendee::PATH_SEGMENT, "/", &attendee_id].concat();
+        let path = PubkyAppAttendee::create_path(&attendee_id);
         let meta = Meta::from_object(Some(&attendee_id), self.pubky_id.clone(), path);
 
         Ok(AttendeeResult { attendee, meta })
