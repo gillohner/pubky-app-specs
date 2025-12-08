@@ -1,6 +1,6 @@
 use crate::{
     common::timestamp,
-    traits::{HasIdPath, HashId, Validatable},
+    traits::{HasIdPath, TimestampId, Validatable},
     validation::{is_valid_hex_color, is_valid_timezone},
     EVENTKY_PATH, PUBLIC_PATH,
 };
@@ -64,7 +64,7 @@ impl StyledDescription {
 
 /// Calendar container - collection of events
 /// URI: /pub/eventky.app/calendars/:calendar_id
-/// Where calendar_id is a hash-based ID similar to feeds
+/// Where calendar_id is a timestamp-based ID (like events)
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[cfg_attr(feature = "openapi", derive(ToSchema))]
@@ -86,6 +86,10 @@ pub struct PubkyAppCalendar {
     pub url: Option<String>,               // Calendar homepage/details URL
     pub created: Option<i64>,              // Creation timestamp (Unix microseconds)
 
+    // Versioning fields (like events) for edit tracking
+    pub sequence: Option<i32>,             // Version number, incremented on each edit
+    pub last_modified: Option<i64>,        // Last modification timestamp (Unix microseconds)
+
     // Pubky Extensions (all custom fields use x_pubky_ prefix)
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen(skip))]
     pub x_pubky_admins: Option<Vec<String>>,  // Pubky URIs of admin users
@@ -95,6 +99,7 @@ impl PubkyAppCalendar {
     /// Creates a new `PubkyAppCalendar` instance with required fields and sensible defaults.
     pub fn new(name: String, timezone: String) -> Self {
         let created = Some(timestamp());
+        let last_modified = Some(timestamp());
         Self {
             name,
             timezone,
@@ -105,6 +110,9 @@ impl PubkyAppCalendar {
             url: None,
             created,
             x_pubky_admins: None,
+            // Versioning fields (like events)
+            sequence: Some(0),
+            last_modified,
         }
         .sanitize()
     }
@@ -133,6 +141,25 @@ impl PubkyAppCalendar {
     pub fn with_admins(mut self, admins: Vec<String>) -> Self {
         self.x_pubky_admins = Some(admins);
         self.sanitize()
+    }
+
+    /// Set sequence number (for versioning)
+    pub fn with_sequence(mut self, sequence: i32) -> Self {
+        self.sequence = Some(sequence);
+        self
+    }
+
+    /// Set last_modified timestamp (for versioning)
+    pub fn with_last_modified(mut self, last_modified: i64) -> Self {
+        self.last_modified = Some(last_modified);
+        self
+    }
+
+    /// Increment sequence and update last_modified (call on edit)
+    pub fn increment_version(mut self) -> Self {
+        self.sequence = Some(self.sequence.unwrap_or(0) + 1);
+        self.last_modified = Some(timestamp());
+        self
     }
 }
 
@@ -179,6 +206,16 @@ impl PubkyAppCalendar {
         self.x_pubky_admins.clone()
     }
 
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen(getter, js_name = "getSequence"))]
+    pub fn sequence(&self) -> Option<i32> {
+        self.sequence
+    }
+
+    #[cfg_attr(target_arch = "wasm32", wasm_bindgen(getter, js_name = "getLastModified"))]
+    pub fn last_modified(&self) -> Option<i64> {
+        self.last_modified
+    }
+
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen(js_name = fromJson))]
     pub fn from_json(js_value: &JsValue) -> Result<Self, String> {
         Self::import_json(js_value)
@@ -193,22 +230,9 @@ impl PubkyAppCalendar {
 #[cfg(target_arch = "wasm32")]
 impl Json for PubkyAppCalendar {}
 
-impl HashId for PubkyAppCalendar {
-    /// Generates an ID based on the serialized calendar data (excluding timestamp).
-    fn get_id_data(&self) -> String {
-        // Create a version without timestamp for consistent hashing
-        let data = serde_json::json!({
-            "name": self.name,
-            "timezone": self.timezone,
-            "color": self.color,
-            "image_uri": self.image_uri,
-            "description": self.description,
-            "url": self.url,
-            "x_pubky_admins": self.x_pubky_admins
-        });
-        serde_json::to_string(&data).unwrap_or_default()
-    }
-}
+// Use TimestampId (like events) instead of HashId
+// This allows calendars to be edited while keeping the same ID
+impl TimestampId for PubkyAppCalendar {}
 
 impl HasIdPath for PubkyAppCalendar {
     const PATH_SEGMENT: &'static str = "calendars/";
@@ -278,6 +302,8 @@ impl Validatable for PubkyAppCalendar {
             url,
             created: self.created,
             x_pubky_admins,
+            sequence: self.sequence,
+            last_modified: self.last_modified,
         }
     }
 

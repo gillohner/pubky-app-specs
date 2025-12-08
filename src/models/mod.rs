@@ -1,7 +1,7 @@
 use crate::{traits::Validatable, ParsedUri, Resource};
 
 #[cfg(test)]
-use crate::traits::{HashId, TimestampId};
+use crate::traits::TimestampId;
 
 pub mod attendee;
 pub mod blob;
