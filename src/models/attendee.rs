@@ -20,7 +20,28 @@ const VALID_PARTSTAT: &[&str] = &["NEEDS-ACTION", "ACCEPTED", "DECLINED", "TENTA
 
 /// Attendee - an RSVP/participation record for an event (simplified for self-RSVP only)
 /// URI: /pub/eventky.app/attendees/:attendee_id
-/// Where attendee_id is a hash generated from the event URI (stored under the user's space)
+/// 
+/// The attendee_id is a hash generated from:
+/// - `x_pubky_event_uri`: The event this RSVP belongs to
+/// - `recurrence_id`: Optional - specific instance of a recurring event
+/// 
+/// ## Recurring Event Support
+/// 
+/// For recurring events, users can have multiple attendance records:
+/// 
+/// 1. **Global/Default RSVP** (no `recurrence_id`):
+///    - Applies to the entire event series
+///    - Used as fallback when no instance-specific RSVP exists
+/// 
+/// 2. **Instance-specific RSVP** (with `recurrence_id`):
+///    - Applies only to a specific occurrence
+///    - Overrides the global RSVP for that instance
+/// 
+/// ## Display Priority
+/// 
+/// When showing attendance for an instance:
+/// 1. Use instance-specific record if it exists
+/// 2. Fall back to global record if no instance-specific exists
 /// 
 /// This simplified version only supports direct RSVP by the user themselves,
 /// not delegation or organizer-created invite records.
@@ -157,11 +178,20 @@ impl HasIdPath for PubkyAppAttendee {
 }
 
 impl HashId for PubkyAppAttendee {
-    /// Generates an ID based on event URI (since attendee only tracks self-attendance)
+    /// Generates an ID based on event URI and optional recurrence_id.
+    /// 
+    /// This allows:
+    /// - One "global" attendee record per event (no recurrence_id) that serves as default
+    /// - Separate attendee records per recurring event instance (with recurrence_id)
+    /// 
+    /// When displaying attendance for an instance:
+    /// - Instance-specific record takes priority if it exists
+    /// - Falls back to global record if no instance-specific record exists
     fn get_id_data(&self) -> String {
-        // Create a deterministic ID based on event URI
+        // Create a deterministic ID based on event URI and optional recurrence_id
         let data = serde_json::json!({
-            "x_pubky_event_uri": self.x_pubky_event_uri
+            "x_pubky_event_uri": self.x_pubky_event_uri,
+            "recurrence_id": self.recurrence_id
         });
         serde_json::to_string(&data).unwrap_or_default()
     }
@@ -440,5 +470,41 @@ mod tests {
             let result = attendee.validate(None);
             assert!(result.is_ok(), "Status {} should be valid", status);
         }
+    }
+
+    #[test]
+    fn test_hash_id_different_for_different_recurrence() {
+        use crate::traits::HashId;
+        
+        let event_uri = sample_event_uri();
+        
+        // Global attendee (no recurrence_id)
+        let global_attendee = PubkyAppAttendee::accepted(event_uri.clone());
+        let global_id = global_attendee.create_id();
+        
+        // Instance-specific attendee
+        let mut instance_attendee = PubkyAppAttendee::accepted(event_uri.clone());
+        instance_attendee.recurrence_id = Some("2024-01-15T10:00:00".to_string());
+        let instance_id = instance_attendee.create_id();
+        
+        // Another instance
+        let mut instance2_attendee = PubkyAppAttendee::accepted(event_uri.clone());
+        instance2_attendee.recurrence_id = Some("2024-02-15T10:00:00".to_string());
+        let instance2_id = instance2_attendee.create_id();
+        
+        // All three should be different
+        assert_ne!(global_id, instance_id, "Global and instance IDs should differ");
+        assert_ne!(global_id, instance2_id, "Global and instance2 IDs should differ");
+        assert_ne!(instance_id, instance2_id, "Different instances should have different IDs");
+        
+        // Same recurrence_id should produce same ID
+        let mut same_instance = PubkyAppAttendee::declined(event_uri.clone());
+        same_instance.recurrence_id = Some("2024-01-15T10:00:00".to_string());
+        let same_instance_id = same_instance.create_id();
+        assert_eq!(instance_id, same_instance_id, "Same event+instance should have same ID regardless of partstat");
+        
+        println!("Global ID: {}", global_id);
+        println!("Instance 1 ID: {}", instance_id);
+        println!("Instance 2 ID: {}", instance2_id);
     }
 }

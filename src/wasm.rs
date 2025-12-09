@@ -535,10 +535,13 @@ impl PubkySpecsBuilder {
         attendee.recurrence_id = recurrence_id;
         attendee.validate(None)?; // Attendee doesn't use ID-based validation
 
-        // For attendees, we generate an ID based on event URI and user ID for the path
+        // Generate ID using HashId trait (includes event URI and recurrence_id)
+        // This ensures different instances of recurring events get different IDs
+        let hash_id = attendee.create_id();
+        // Prefix with user ID fragment for readability
         let attendee_id = format!("{}-{}", 
             self.pubky_id.to_string().chars().take(8).collect::<String>(),
-            attendee.x_pubky_event_uri.chars().rev().take(8).collect::<String>()
+            hash_id
         );
         
         let path = PubkyAppAttendee::create_path(&attendee_id);
