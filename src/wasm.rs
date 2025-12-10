@@ -633,26 +633,8 @@ pub fn parse_uri(uri: &str) -> Result<ParsedUriResult, String> {
 }
 
 // =============================================================================
-// Calendar/Event/Attendee Helper Functions
+// Validation Helper Functions  
 // =============================================================================
-
-/// Converts ISO 8601 timestamp to Unix microseconds
-#[wasm_bindgen(js_name = parseIsoToTimestamp)]
-pub fn parse_iso_to_timestamp(iso_string: &str) -> Result<i64, String> {
-    // This is a simplified version - in a real implementation you'd use a proper datetime parser
-    // For now, we'll assume the caller provides Unix timestamps in string format
-    iso_string.parse::<i64>()
-        .map(|ts| ts * 1_000_000) // Convert seconds to microseconds
-        .map_err(|_| "Invalid timestamp format. Expected Unix timestamp in seconds.".to_string())
-}
-
-/// Converts Unix microseconds to ISO 8601 string
-#[wasm_bindgen(js_name = timestampToIso)]
-pub fn timestamp_to_iso(timestamp: i64) -> String {
-    // This is a simplified version - in a real implementation you'd use a proper datetime formatter
-    // For now, we'll return Unix timestamp in seconds as string
-    (timestamp / 1_000_000).to_string()
-}
 
 /// Get valid RSVP status values
 #[wasm_bindgen(js_name = getValidRsvpStatuses)]

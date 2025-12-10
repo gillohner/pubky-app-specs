@@ -16,29 +16,6 @@ use wasm_bindgen::prelude::*;
 #[cfg(feature = "openapi")]
 use utoipa::ToSchema;
 
-/// Represents event organizer information
-#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-#[cfg_attr(feature = "openapi", derive(ToSchema))]
-pub struct Organizer {
-    #[cfg_attr(target_arch = "wasm32", wasm_bindgen(skip))]
-    pub name: String,
-}
-
-#[cfg(target_arch = "wasm32")]
-#[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
-impl Organizer {
-    #[cfg_attr(target_arch = "wasm32", wasm_bindgen(constructor))]
-    pub fn new(name: String) -> Self {
-        Organizer { name }
-    }
-
-    #[cfg_attr(target_arch = "wasm32", wasm_bindgen(getter))]
-    pub fn name(&self) -> String {
-        self.name.clone()
-    }
-}
-
 // Validation constants
 const MIN_UID_LENGTH: usize = 1;
 const MAX_UID_LENGTH: usize = 255;
@@ -85,9 +62,6 @@ pub struct PubkyAppEvent {
     pub description: Option<String>,    // Plain text description
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen(skip))]
     pub status: Option<String>,         // CONFIRMED | TENTATIVE | CANCELLED
-    // TODO: Take care of organizer field later
-    // #[cfg_attr(target_arch = "wasm32", wasm_bindgen(skip))]
-    // pub organizer: Option<Organizer>,   // Event organizer (name from profile.json)
     
     // RFC 5545 - Location
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen(skip))]

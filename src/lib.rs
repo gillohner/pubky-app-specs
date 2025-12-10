@@ -12,7 +12,7 @@ pub use models::attendee::PubkyAppAttendee;
 pub use models::blob::PubkyAppBlob;
 pub use models::bookmark::PubkyAppBookmark;
 pub use models::calendar::{PubkyAppCalendar, StyledDescription};
-pub use models::event::{Organizer, PubkyAppEvent};
+pub use models::event::PubkyAppEvent;
 pub use models::feed::{PubkyAppFeed, PubkyAppFeedLayout, PubkyAppFeedReach, PubkyAppFeedSort};
 pub use models::file::PubkyAppFile;
 pub use models::follow::PubkyAppFollow;
