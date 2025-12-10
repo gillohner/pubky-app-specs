@@ -280,15 +280,22 @@ impl Validatable for PubkyAppCalendar {
             }
         });
         
-        // Sanitize admin URIs
+        // Sanitize admin identifiers - accepts both full pubky URIs and plain public keys
         let x_pubky_admins = self.x_pubky_admins.map(|admins| {
             admins.into_iter()
                 .take(MAX_ADMINS)
-                .filter_map(|admin_uri| {
-                    match Url::parse(&admin_uri.trim()) {
-                        Ok(url) => Some(url.to_string()),
-                        Err(_) => None,
+                .filter_map(|admin_value| {
+                    let trimmed = admin_value.trim();
+                    // If it's a valid URL (full pubky URI), use it
+                    if let Ok(url) = Url::parse(trimmed) {
+                        return Some(url.to_string());
                     }
+                    // If it looks like a public key (alphanumeric, reasonable length), accept it as-is
+                    // Public keys are typically 52 characters (z-base-32 encoded)
+                    if trimmed.len() >= 32 && trimmed.len() <= 64 && trimmed.chars().all(|c| c.is_alphanumeric()) {
+                        return Some(trimmed.to_string());
+                    }
+                    None
                 })
                 .collect::<Vec<_>>()
         }).filter(|admins| !admins.is_empty());
