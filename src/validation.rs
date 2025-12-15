@@ -85,6 +85,201 @@ pub fn is_valid_geo(geo: &str) -> bool {
     true
 }
 
+/// Validates RFC 5545 RRULE (Recurrence Rule) format
+/// 
+/// Supports standard RRULE components:
+/// - FREQ (DAILY, WEEKLY, MONTHLY, YEARLY)
+/// - INTERVAL (1-999)
+/// - COUNT (1-999)
+/// - UNTIL (ISO 8601 datetime)
+/// - BYDAY (MO, TU, WE, TH, FR, SA, SU with optional prefix)
+/// - BYMONTHDAY (1-31, -31 to -1)
+/// - BYMONTH (1-12)
+/// - BYSETPOS (-366 to 366, excluding 0)
+/// - WKST (MO, TU, WE, TH, FR, SA, SU)
+/// 
+/// # Examples
+/// ```
+/// use pubky_app_specs::is_valid_rrule;
+/// 
+/// assert!(is_valid_rrule("FREQ=DAILY"));
+/// assert!(is_valid_rrule("FREQ=WEEKLY;INTERVAL=2;COUNT=10"));
+/// assert!(is_valid_rrule("FREQ=MONTHLY;BYDAY=-1TH")); // Last Thursday
+/// assert!(is_valid_rrule("FREQ=MONTHLY;BYMONTHDAY=21")); // 21st of month
+/// assert!(!is_valid_rrule("INVALID"));
+/// ```
+pub fn is_valid_rrule(rrule: &str) -> bool {
+    if rrule.is_empty() {
+        return false;
+    }
+    
+    let parts: Vec<&str> = rrule.split(';').collect();
+    let mut has_freq = false;
+    let mut has_count = false;
+    let mut has_until = false;
+    
+    for part in parts {
+        let kv: Vec<&str> = part.split('=').collect();
+        if kv.len() != 2 {
+            return false;
+        }
+        
+        let key = kv[0];
+        let value = kv[1];
+        
+        match key {
+            "FREQ" => {
+                if !matches!(value, "DAILY" | "WEEKLY" | "MONTHLY" | "YEARLY") {
+                    return false;
+                }
+                has_freq = true;
+            },
+            "INTERVAL" => {
+                if let Ok(interval) = value.parse::<u32>() {
+                    if interval == 0 || interval > 999 {
+                        return false;
+                    }
+                } else {
+                    return false;
+                }
+            },
+            "COUNT" => {
+                if let Ok(count) = value.parse::<u32>() {
+                    if count == 0 || count > 999 {
+                        return false;
+                    }
+                    has_count = true;
+                } else {
+                    return false;
+                }
+            },
+            "UNTIL" => {
+                if !is_valid_datetime(value) {
+                    return false;
+                }
+                has_until = true;
+            },
+            "BYDAY" => {
+                // Validate BYDAY format: [+/-]N?DAY (e.g., MO, -1TH, 2FR)
+                for day in value.split(',') {
+                    if !is_valid_byday(day) {
+                        return false;
+                    }
+                }
+            },
+            "BYMONTHDAY" => {
+                // Validate BYMONTHDAY: 1-31 or -31 to -1
+                for md in value.split(',') {
+                    if let Ok(day) = md.parse::<i32>() {
+                        if day == 0 || day > 31 || day < -31 {
+                            return false;
+                        }
+                    } else {
+                        return false;
+                    }
+                }
+            },
+            "BYMONTH" => {
+                // Validate BYMONTH: 1-12
+                for month in value.split(',') {
+                    if let Ok(m) = month.parse::<u32>() {
+                        if m == 0 || m > 12 {
+                            return false;
+                        }
+                    } else {
+                        return false;
+                    }
+                }
+            },
+            "BYSETPOS" => {
+                // Validate BYSETPOS: -366 to 366, excluding 0
+                for pos in value.split(',') {
+                    if let Ok(p) = pos.parse::<i32>() {
+                        if p == 0 || p > 366 || p < -366 {
+                            return false;
+                        }
+                    } else {
+                        return false;
+                    }
+                }
+            },
+            "WKST" => {
+                if !matches!(value, "MO" | "TU" | "WE" | "TH" | "FR" | "SA" | "SU") {
+                    return false;
+                }
+            },
+            _ => {
+                // Unknown RRULE component - reject to be strict
+                return false;
+            }
+        }
+    }
+    
+    // Must have FREQ
+    if !has_freq {
+        return false;
+    }
+    
+    // Cannot have both COUNT and UNTIL
+    if has_count && has_until {
+        return false;
+    }
+    
+    true
+}
+
+/// Helper function to validate BYDAY component
+fn is_valid_byday(byday: &str) -> bool {
+    // Format: [+/-]N?DAY where DAY is MO, TU, WE, TH, FR, SA, SU
+    // Examples: MO, -1TH, 2FR, +3WE
+    
+    let weekdays = ["MO", "TU", "WE", "TH", "FR", "SA", "SU"];
+    
+    // Check if it's just a weekday
+    if weekdays.contains(&byday) {
+        return true;
+    }
+    
+    // Check for prefix number (e.g., -1TH, 2FR)
+    let mut chars = byday.chars();
+    let mut pos = String::new();
+    
+    // Handle optional sign
+    if let Some(first) = chars.next() {
+        if first == '+' || first == '-' {
+            pos.push(first);
+        } else if first.is_ascii_digit() {
+            pos.push(first);
+        } else {
+            return false;
+        }
+    }
+    
+    // Collect remaining digits
+    for c in chars.clone() {
+        if c.is_ascii_digit() {
+            pos.push(c);
+        } else {
+            break;
+        }
+    }
+    
+    // Validate position number (-53 to 53, excluding 0)
+    if !pos.is_empty() {
+        if let Ok(n) = pos.parse::<i32>() {
+            if n == 0 || n > 53 || n < -53 {
+                return false;
+            }
+            // Rest should be a valid weekday
+            let day_part = &byday[pos.len()..];
+            return weekdays.contains(&day_part);
+        }
+        return false;
+    }
+    
+    false
+}
+
 /// Validates ISO 8601 duration format (simplified)
 /// 
 /// # Examples
@@ -242,28 +437,6 @@ pub fn is_valid_datetime(datetime: &str) -> bool {
     };
     
     true
-}
-
-/// Validates RFC 5545 RRULE format (simplified)
-/// 
-/// # Examples
-/// ```
-/// use pubky_app_specs::is_valid_rrule;
-/// 
-/// assert!(is_valid_rrule("FREQ=DAILY"));
-/// assert!(is_valid_rrule("FREQ=WEEKLY;BYDAY=MO,FR"));
-/// assert!(!is_valid_rrule("DAILY")); // Missing FREQ=
-/// ```
-pub fn is_valid_rrule(rrule: &str) -> bool {
-    // Basic RRULE validation - should start with FREQ= and have a value after it
-    if !rrule.starts_with("FREQ=") || rrule.len() <= 5 {
-        return false;
-    }
-    
-    // Check for valid characters
-    rrule.chars().all(|c| {
-        c.is_alphanumeric() || matches!(c, '=' | ';' | ',' | '+' | '-')
-    })
 }
 
 /// Returns the list of valid RSVP status values according to RFC 5545
