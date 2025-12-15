@@ -397,13 +397,13 @@ impl PubkySpecsBuilder {
         image_uri: Option<String>,
         description: Option<String>,
         url: Option<String>,
-        x_pubky_admins: JsValue, // JS array of admin URIs or null
+        x_pubky_authors: JsValue, // JS array of author URIs (users who can add events) or null
     ) -> Result<CalendarResult, String> {
-        // Convert JS 'x_pubky_admins' -> Option<Vec<String>>
-        let admins_vec: Option<Vec<String>> = if x_pubky_admins.is_null() || x_pubky_admins.is_undefined() {
+        // Convert JS 'x_pubky_authors' -> Option<Vec<String>>
+        let authors_vec: Option<Vec<String>> = if x_pubky_authors.is_null() || x_pubky_authors.is_undefined() {
             None
         } else {
-            from_value(x_pubky_admins).map_err(|e| e.to_string())?
+            from_value(x_pubky_authors).map_err(|e| e.to_string())?
         };
 
         let mut calendar = PubkyAppCalendar::new(name, timezone);
@@ -419,8 +419,8 @@ impl PubkySpecsBuilder {
         if let Some(url_val) = url {
             calendar = calendar.with_url(url_val);
         }
-        if let Some(admins_val) = admins_vec {
-            calendar = calendar.with_admins(admins_val);
+        if let Some(authors_val) = authors_vec {
+            calendar = calendar.with_authors(authors_val);
         }
         
         let calendar_id = calendar.create_id();

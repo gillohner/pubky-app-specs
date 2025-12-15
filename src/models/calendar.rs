@@ -92,7 +92,7 @@ pub struct PubkyAppCalendar {
 
     // Pubky Extensions (all custom fields use x_pubky_ prefix)
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen(skip))]
-    pub x_pubky_admins: Option<Vec<String>>,  // Pubky URIs of admin users
+    pub x_pubky_authors: Option<Vec<String>>,  // Pubky URIs of users who can add events to this calendar (only owner can edit calendar itself)
 }
 
 impl PubkyAppCalendar {
@@ -109,7 +109,7 @@ impl PubkyAppCalendar {
             description: None,
             url: None,
             created,
-            x_pubky_admins: None,
+            x_pubky_authors: None,
             // Versioning fields (like events)
             sequence: Some(0),
             last_modified,
@@ -138,8 +138,8 @@ impl PubkyAppCalendar {
         self.sanitize()
     }
 
-    pub fn with_admins(mut self, admins: Vec<String>) -> Self {
-        self.x_pubky_admins = Some(admins);
+    pub fn with_authors(mut self, authors: Vec<String>) -> Self {
+        self.x_pubky_authors = Some(authors);
         self.sanitize()
     }
 
@@ -202,8 +202,8 @@ impl PubkyAppCalendar {
     }
 
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen(getter))]
-    pub fn x_pubky_admins(&self) -> Option<Vec<String>> {
-        self.x_pubky_admins.clone()
+    pub fn x_pubky_authors(&self) -> Option<Vec<String>> {
+        self.x_pubky_authors.clone()
     }
 
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen(getter, js_name = "getSequence"))]
@@ -280,12 +280,12 @@ impl Validatable for PubkyAppCalendar {
             }
         });
         
-        // Sanitize admin identifiers - accepts both full pubky URIs and plain public keys
-        let x_pubky_admins = self.x_pubky_admins.map(|admins| {
-            admins.into_iter()
+        // Sanitize author identifiers - accepts both full pubky URIs and plain public keys
+        let x_pubky_authors = self.x_pubky_authors.map(|authors| {
+            authors.into_iter()
                 .take(MAX_ADMINS)
-                .filter_map(|admin_value| {
-                    let trimmed = admin_value.trim();
+                .filter_map(|author_value| {
+                    let trimmed = author_value.trim();
                     // If it's a valid URL (full pubky URI), use it
                     if let Ok(url) = Url::parse(trimmed) {
                         return Some(url.to_string());
@@ -298,7 +298,7 @@ impl Validatable for PubkyAppCalendar {
                     None
                 })
                 .collect::<Vec<_>>()
-        }).filter(|admins| !admins.is_empty());
+        }).filter(|authors| !authors.is_empty());
         
         Self {
             name,
@@ -308,7 +308,7 @@ impl Validatable for PubkyAppCalendar {
             description,
             url,
             created: self.created,
-            x_pubky_admins,
+            x_pubky_authors,
             sequence: self.sequence,
             last_modified: self.last_modified,
         }
@@ -349,10 +349,10 @@ impl Validatable for PubkyAppCalendar {
             }
         }
 
-        // Validate admin count
-        if let Some(admins) = &self.x_pubky_admins {
-            if admins.len() > MAX_ADMINS {
-                return Err("Validation Error: Too many admin users".into());
+        // Validate author count
+        if let Some(authors) = &self.x_pubky_authors {
+            if authors.len() > MAX_ADMINS {
+                return Err("Validation Error: Too many calendar authors".into());
             }
         }
 
@@ -485,14 +485,14 @@ mod tests {
         .with_color("  #3498DB  ".to_string())
         .with_image_uri("invalid_url".to_string())
         .with_description("  Description  ".to_string())
-        .with_admins(vec!["invalid_uri".to_string()]);
+        .with_authors(vec!["invalid_uri".to_string()]);
 
         assert_eq!(calendar.name, "Work Calendar");
         assert_eq!(calendar.timezone, "Europe/Zurich");
         assert_eq!(calendar.color, Some("#3498db".to_string()));
         assert!(calendar.image_uri.is_none()); // Invalid URL sanitized out
         assert_eq!(calendar.description, Some("Description".to_string()));
-        assert!(calendar.x_pubky_admins.is_none()); // Invalid URIs filtered out
+        assert!(calendar.x_pubky_authors.is_none()); // Invalid URIs filtered out
     }
 
     #[test]
