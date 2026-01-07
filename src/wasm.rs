@@ -448,8 +448,8 @@ impl PubkySpecsBuilder {
         dtend_tzid: Option<String>,
         description: Option<String>,
         status: Option<String>,
-        location: Option<String>,
-        geo: Option<String>,
+        locations: JsValue, // JS array of EventLocation objects or null
+        conferences: JsValue, // JS array of EventConference objects or null
         image_uri: Option<String>,
         url: Option<String>,
         rrule: Option<String>,
@@ -479,6 +479,19 @@ impl PubkySpecsBuilder {
             from_value(x_pubky_calendar_uris).map_err(|e| e.to_string())?
         };
 
+        // Convert locations and conferences from JS arrays
+        let locations_vec: Option<Vec<crate::models::event::EventLocation>> = if locations.is_null() || locations.is_undefined() {
+            None
+        } else {
+            from_value(locations).map_err(|e| e.to_string())?
+        };
+        
+        let conferences_vec: Option<Vec<crate::models::event::EventConference>> = if conferences.is_null() || conferences.is_undefined() {
+            None
+        } else {
+            from_value(conferences).map_err(|e| e.to_string())?
+        };
+
         let mut event = PubkyAppEvent::new(uid, dtstart, summary);
         
         if let Some(dtend_val) = dtend {
@@ -487,11 +500,11 @@ impl PubkySpecsBuilder {
         if let Some(description_val) = description {
             event = event.with_description(description_val);
         }
-        if let Some(location_val) = location {
-            event = event.with_location(location_val);
+        if let Some(locations_val) = locations_vec {
+            event = event.with_locations(locations_val);
         }
-        if let Some(geo_val) = geo {
-            event = event.with_geo(geo_val);
+        if let Some(conferences_val) = conferences_vec {
+            event = event.with_conferences(conferences_val);
         }
         if let Some(status_val) = status {
             event = event.with_status(status_val);
@@ -682,4 +695,46 @@ pub fn validate_duration(duration: &str) -> bool {
 #[wasm_bindgen(js_name = validateRrule)]
 pub fn validate_rrule(rrule: &str) -> bool {
     crate::validation::is_valid_rrule(rrule)
+}
+
+/// Validate RFC 5870 geo URI format (geo:lat,lon or geo:lat,lon;u=uncertainty)
+#[wasm_bindgen(js_name = validateGeoUri)]
+pub fn validate_geo_uri(geo_uri: &str) -> bool {
+    crate::validation::is_valid_geo_uri(geo_uri)
+}
+
+/// Validate RFC 4589 location type
+#[wasm_bindgen(js_name = validateLocationType)]
+pub fn validate_location_type(location_type: &str) -> bool {
+    crate::validation::is_valid_location_type(location_type)
+}
+
+/// Validate RFC 7986 CONFERENCE FEATURE values
+#[wasm_bindgen(js_name = validateConferenceFeatures)]
+pub fn validate_conference_features(features: Vec<String>) -> bool {
+    crate::validation::is_valid_conference_features(&features)
+}
+
+/// Validate URI format (basic check for scheme://host format)
+#[wasm_bindgen(js_name = validateUri)]
+pub fn validate_uri(uri: &str) -> bool {
+    crate::validation::is_valid_uri(uri)
+}
+
+/// Get valid RFC 4589 location types
+#[wasm_bindgen(js_name = getValidLocationTypes)]
+pub fn get_valid_location_types() -> Vec<String> {
+    crate::validation::LOCATION_TYPES
+        .iter()
+        .map(|s| s.to_string())
+        .collect()
+}
+
+/// Get valid RFC 7986 CONFERENCE FEATURE values
+#[wasm_bindgen(js_name = getValidConferenceFeatures)]
+pub fn get_valid_conference_features() -> Vec<String> {
+    crate::validation::CONFERENCE_FEATURES
+        .iter()
+        .map(|s| s.to_string())
+        .collect()
 }

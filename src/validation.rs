@@ -85,6 +85,177 @@ pub fn is_valid_geo(geo: &str) -> bool {
     true
 }
 
+/// Validates RFC 5870 geo URI format
+/// 
+/// Format: "geo:lat,lon" or "geo:lat,lon;u=uncertainty"
+/// 
+/// # Examples
+/// ```
+/// use pubky_app_specs::is_valid_geo_uri;
+/// 
+/// assert!(is_valid_geo_uri("geo:47.3769,8.5417")); // Basic format
+/// assert!(is_valid_geo_uri("geo:47.3769,8.5417;u=10")); // With uncertainty
+/// assert!(!is_valid_geo_uri("47.3769,8.5417")); // Missing geo: prefix
+/// ```
+pub fn is_valid_geo_uri(geo_uri: &str) -> bool {
+    // Must start with "geo:"
+    if !geo_uri.starts_with("geo:") {
+        return false;
+    }
+    
+    let content = &geo_uri[4..]; // Skip "geo:"
+    
+    // Split by semicolon to handle optional parameters like uncertainty
+    let main_part = content.split(';').next().unwrap_or("");
+    
+    // Split by comma for lat,lon
+    let parts: Vec<&str> = main_part.split(',').collect();
+    if parts.len() < 2 {
+        return false;
+    }
+    
+    // Validate latitude (-90 to 90)
+    if let Ok(lat) = parts[0].parse::<f64>() {
+        if lat < -90.0 || lat > 90.0 {
+            return false;
+        }
+    } else {
+        return false;
+    }
+    
+    // Validate longitude (-180 to 180)
+    if let Ok(lon) = parts[1].parse::<f64>() {
+        if lon < -180.0 || lon > 180.0 {
+            return false;
+        }
+    } else {
+        return false;
+    }
+    
+    true
+}
+
+/// RFC 4589 location types registry
+/// 
+/// Common location types from the IANA Location Types Registry
+pub const LOCATION_TYPES: &[&str] = &[
+    // Building/facility types
+    "venue",
+    "parking",
+    "restaurant",
+    "bar",
+    "hotel",
+    "motel",
+    "resort",
+    "convention-center",
+    "stadium",
+    "arena",
+    "theater",
+    "cinema",
+    "museum",
+    "library",
+    "school",
+    "university",
+    "hospital",
+    "church",
+    "mosque",
+    "synagogue",
+    "temple",
+    // Transportation
+    "airport",
+    "train-station",
+    "bus-station",
+    "subway-station",
+    "port",
+    "ferry-terminal",
+    // Outdoor/recreation
+    "park",
+    "beach",
+    "campground",
+    "golf-course",
+    "ski-resort",
+    "marina",
+    // Commercial
+    "office",
+    "shop",
+    "mall",
+    "market",
+    "bank",
+    // Residential
+    "residence",
+    "apartment",
+    "house",
+    // Other
+    "warehouse",
+    "industrial",
+    "government",
+    "embassy",
+    "military",
+    "prison",
+    "cemetery",
+    "other",
+];
+
+/// Validates RFC 4589 location type
+/// 
+/// # Examples
+/// ```
+/// use pubky_app_specs::is_valid_location_type;
+/// 
+/// assert!(is_valid_location_type("venue"));
+/// assert!(is_valid_location_type("parking"));
+/// assert!(!is_valid_location_type("invalid_type"));
+/// ```
+pub fn is_valid_location_type(location_type: &str) -> bool {
+    LOCATION_TYPES.contains(&location_type.to_lowercase().as_str())
+}
+
+/// RFC 7986 CONFERENCE FEATURE values
+pub const CONFERENCE_FEATURES: &[&str] = &[
+    "AUDIO",     // Audio conferencing
+    "VIDEO",     // Video conferencing  
+    "CHAT",      // Text chat/messaging
+    "PHONE",     // Phone dial-in
+    "SCREEN",    // Screen sharing
+    "MODERATOR", // Moderator controls available
+    "FEED",      // Broadcast/streaming feed
+];
+
+/// Validates RFC 7986 CONFERENCE FEATURE values
+/// 
+/// # Examples
+/// ```
+/// use pubky_app_specs::is_valid_conference_features;
+/// 
+/// assert!(is_valid_conference_features(&["AUDIO".to_string(), "VIDEO".to_string()]));
+/// assert!(!is_valid_conference_features(&["INVALID".to_string()]));
+/// ```
+pub fn is_valid_conference_features(features: &[String]) -> bool {
+    if features.is_empty() {
+        return true; // Empty is valid (no features specified)
+    }
+    
+    features.iter().all(|f| CONFERENCE_FEATURES.contains(&f.to_uppercase().as_str()))
+}
+
+/// Validates a URI using the url crate
+/// 
+/// Accepts any valid URI scheme (https, http, tel, sip, etc.)
+/// per RFC 7986 permissive approach for CONFERENCE URIs.
+/// 
+/// # Examples
+/// ```
+/// use pubky_app_specs::is_valid_uri;
+/// 
+/// assert!(is_valid_uri("https://zoom.us/j/123456789"));
+/// assert!(is_valid_uri("tel:+1-555-123-4567"));
+/// assert!(is_valid_uri("sip:meeting@example.com"));
+/// assert!(!is_valid_uri("not a valid uri"));
+/// ```
+pub fn is_valid_uri(uri: &str) -> bool {
+    url::Url::parse(uri).is_ok()
+}
+
 /// Validates RFC 5545 RRULE (Recurrence Rule) format
 /// 
 /// Supports standard RRULE components:
@@ -525,6 +696,122 @@ mod tests {
         assert!(!is_valid_duration("PT1H30"));    // Missing unit
         assert!(!is_valid_duration("PT1X30M"));   // Invalid char
         assert!(!is_valid_duration(""));          // Empty
+    }
+
+    // =====================================================
+    // RFC 5870 / RFC 4589 / RFC 7986 - Location Tests
+    // =====================================================
+
+    #[test]
+    fn test_is_valid_geo_uri() {
+        // Valid RFC 5870 geo URIs
+        assert!(is_valid_geo_uri("geo:47.3769,8.5417"));        // Zurich
+        assert!(is_valid_geo_uri("geo:0,0"));                   // Null Island
+        assert!(is_valid_geo_uri("geo:-90,-180"));              // Min bounds
+        assert!(is_valid_geo_uri("geo:90,180"));                // Max bounds
+        assert!(is_valid_geo_uri("geo:47.3769,8.5417;u=10"));   // With uncertainty
+        assert!(is_valid_geo_uri("geo:47.3769,8.5417;u=100"));  // With larger uncertainty
+        assert!(is_valid_geo_uri("geo:-33.8688,151.2093"));     // Sydney
+        assert!(is_valid_geo_uri("geo:35.6762,139.6503"));      // Tokyo
+        
+        // Invalid geo URIs
+        assert!(!is_valid_geo_uri("47.3769,8.5417"));           // Missing "geo:" prefix
+        assert!(!is_valid_geo_uri("geo:47.3769"));              // Missing longitude
+        assert!(!is_valid_geo_uri("geo:91,0"));                 // Lat out of bounds
+        assert!(!is_valid_geo_uri("geo:0,181"));                // Lon out of bounds
+        assert!(!is_valid_geo_uri("geo:invalid,coords"));       // Non-numeric
+        assert!(!is_valid_geo_uri("geo:"));                     // Empty coordinates
+        assert!(!is_valid_geo_uri(""));                         // Empty string
+        assert!(!is_valid_geo_uri("GEO:47.3769,8.5417"));       // Wrong case prefix
+    }
+
+    #[test]
+    fn test_is_valid_location_type() {
+        // Valid RFC 4589 location types
+        assert!(is_valid_location_type("venue"));
+        assert!(is_valid_location_type("parking"));
+        assert!(is_valid_location_type("restaurant"));
+        assert!(is_valid_location_type("hotel"));
+        assert!(is_valid_location_type("airport"));
+        assert!(is_valid_location_type("train-station"));
+        assert!(is_valid_location_type("bus-station"));
+        assert!(is_valid_location_type("office"));
+        assert!(is_valid_location_type("residence"));
+        assert!(is_valid_location_type("stadium"));
+        assert!(is_valid_location_type("theater"));
+        assert!(is_valid_location_type("other"));
+        
+        // Case insensitivity (should normalize)
+        assert!(is_valid_location_type("VENUE"));
+        assert!(is_valid_location_type("Parking"));
+        assert!(is_valid_location_type("RESTAURANT"));
+        
+        // Invalid location types
+        assert!(!is_valid_location_type("invalid_type"));
+        assert!(!is_valid_location_type(""));
+        assert!(!is_valid_location_type("custom-location"));
+        assert!(!is_valid_location_type("unknown"));
+    }
+
+    #[test]
+    fn test_is_valid_conference_features() {
+        // Valid RFC 7986 CONFERENCE features
+        assert!(is_valid_conference_features(&["AUDIO".to_string()]));
+        assert!(is_valid_conference_features(&["VIDEO".to_string()]));
+        assert!(is_valid_conference_features(&["CHAT".to_string()]));
+        assert!(is_valid_conference_features(&["PHONE".to_string()]));
+        assert!(is_valid_conference_features(&["SCREEN".to_string()]));
+        assert!(is_valid_conference_features(&["MODERATOR".to_string()]));
+        assert!(is_valid_conference_features(&["FEED".to_string()]));
+        
+        // Multiple valid features
+        assert!(is_valid_conference_features(&["AUDIO".to_string(), "VIDEO".to_string()]));
+        assert!(is_valid_conference_features(&["VIDEO".to_string(), "CHAT".to_string(), "SCREEN".to_string()]));
+        assert!(is_valid_conference_features(&["AUDIO".to_string(), "VIDEO".to_string(), "MODERATOR".to_string()]));
+        
+        // All features combined
+        assert!(is_valid_conference_features(&[
+            "AUDIO".to_string(), 
+            "VIDEO".to_string(), 
+            "CHAT".to_string(),
+            "PHONE".to_string(),
+            "SCREEN".to_string(),
+            "MODERATOR".to_string(),
+            "FEED".to_string(),
+        ]));
+        
+        // Empty array is valid (no features specified)
+        assert!(is_valid_conference_features(&[]));
+        
+        // Invalid features
+        assert!(!is_valid_conference_features(&["INVALID".to_string()]));
+        assert!(!is_valid_conference_features(&["AUDIO".to_string(), "INVALID".to_string()]));
+        assert!(!is_valid_conference_features(&["WEBCAM".to_string()])); // Not in RFC 7986
+        assert!(!is_valid_conference_features(&["RECORDING".to_string()])); // Not in RFC 7986
+        
+        // Case-insensitive - lowercase is valid (normalized to uppercase)
+        assert!(is_valid_conference_features(&["audio".to_string()]));
+        assert!(is_valid_conference_features(&["video".to_string()]));
+        assert!(is_valid_conference_features(&["Audio".to_string(), "Video".to_string()]));
+    }
+
+    #[test]
+    fn test_is_valid_uri() {
+        // Valid URIs
+        assert!(is_valid_uri("https://zoom.us/j/123456789"));
+        assert!(is_valid_uri("https://meet.google.com/abc-defg-hij"));
+        assert!(is_valid_uri("https://teams.microsoft.com/l/meetup-join/123"));
+        assert!(is_valid_uri("tel:+1-555-123-4567"));
+        assert!(is_valid_uri("sip:user@example.com"));
+        assert!(is_valid_uri("xmpp:room@conference.example.com"));
+        assert!(is_valid_uri("http://example.com/meeting"));
+        assert!(is_valid_uri("https://www.openstreetmap.org/node/123456"));
+        
+        // Invalid URIs
+        assert!(!is_valid_uri(""));                              // Empty
+        assert!(!is_valid_uri("not-a-uri"));                     // No scheme
+        assert!(!is_valid_uri("://missing-scheme.com"));         // Missing scheme
+        assert!(!is_valid_uri("https://"));                      // Missing host
     }
 
     #[test]
