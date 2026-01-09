@@ -1,8 +1,9 @@
 use crate::{
-    constants::{APP_PATH, PROTOCOL, PUBLIC_PATH},
+    constants::{APP_PATH, EVENTKY_PATH, PROTOCOL, PUBLIC_PATH},
     traits::{HasIdPath, HasPath},
-    PubkyAppBlob, PubkyAppBookmark, PubkyAppFeed, PubkyAppFile, PubkyAppFollow, PubkyAppMute,
-    PubkyAppPost, PubkyAppTag, PubkyAppUser,
+    PubkyAppAttendee, PubkyAppBlob, PubkyAppBookmark, PubkyAppCalendar, PubkyAppEvent,
+    PubkyAppFeed, PubkyAppFile, PubkyAppFollow, PubkyAppMute, PubkyAppPost, PubkyAppTag,
+    PubkyAppUser,
 };
 
 #[cfg(target_arch = "wasm32")]
@@ -81,4 +82,31 @@ pub fn feed_uri_builder(author_id: String, feed_id: String) -> String {
 pub fn last_read_uri_builder(author_id: String) -> String {
     let last_read_path = [PUBLIC_PATH, APP_PATH, "last_read"].concat();
     [PROTOCOL, &author_id, &last_read_path].concat()
+}
+
+/// Builds an Eventky base URI of the form "pubky://<user_id>/pub/eventky.app/"
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen(js_name = eventkyBaseUriBuilder))]
+pub fn eventky_base_uri_builder(user_id: String) -> String {
+    format!("{}{}{}{}", PROTOCOL, user_id, PUBLIC_PATH, EVENTKY_PATH)
+}
+
+/// Builds a Calendar URI of the form "pubky://<author_id>/pub/eventky.app/calendars/<calendar_id>"
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen(js_name = calendarUriBuilder))]
+pub fn calendar_uri_builder(author_id: String, calendar_id: String) -> String {
+    let calendar_path = PubkyAppCalendar::create_path(&calendar_id);
+    [PROTOCOL, &author_id, &calendar_path].concat()
+}
+
+/// Builds an Event URI of the form "pubky://<author_id>/pub/eventky.app/events/<event_id>"
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen(js_name = eventUriBuilder))]
+pub fn event_uri_builder(author_id: String, event_id: String) -> String {
+    let event_path = PubkyAppEvent::create_path(&event_id);
+    [PROTOCOL, &author_id, &event_path].concat()
+}
+
+/// Builds an Attendee URI of the form "pubky://<author_id>/pub/eventky.app/attendees/<attendee_id>"
+#[cfg_attr(target_arch = "wasm32", wasm_bindgen(js_name = attendeeUriBuilder))]
+pub fn attendee_uri_builder(author_id: String, attendee_id: String) -> String {
+    let attendee_path = PubkyAppAttendee::create_path(&attendee_id);
+    [PROTOCOL, &author_id, &attendee_path].concat()
 }

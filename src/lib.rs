@@ -5,15 +5,19 @@ pub mod traits;
 mod types;
 mod uri_parser;
 mod utils;
+mod validation;
 
 // Re-export constants
 pub use constants::{
-    APP_PATH, INVALID_TAG_CHARS, MAX_SIZE, MAX_TAG_LABEL_LENGTH, MIN_TAG_LABEL_LENGTH, PROTOCOL,
+    APP_PATH, EVENTKY_PATH, INVALID_TAG_CHARS, MAX_SIZE, MAX_TAG_LABEL_LENGTH, MIN_TAG_LABEL_LENGTH, PROTOCOL,
     PUBLIC_PATH, VERSION,
 };
 // Re-export domain types
+pub use models::attendee::PubkyAppAttendee;
 pub use models::blob::PubkyAppBlob;
 pub use models::bookmark::PubkyAppBookmark;
+pub use models::calendar::{PubkyAppCalendar, StyledDescription};
+pub use models::event::PubkyAppEvent;
 pub use models::feed::{PubkyAppFeed, PubkyAppFeedLayout, PubkyAppFeedReach, PubkyAppFeedSort};
 pub use models::file::{PubkyAppFile, VALID_MIME_TYPES};
 pub use models::follow::PubkyAppFollow;
@@ -26,6 +30,7 @@ pub use models::PubkyAppObject;
 pub use types::PubkyId;
 pub use uri_parser::{ParsedUri, Resource};
 pub use utils::*;
+pub use validation::*;
 
 // Our WASM module
 #[cfg(target_arch = "wasm32")]

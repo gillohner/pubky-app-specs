@@ -4,6 +4,7 @@ pub static VERSION: &str = "0.4.0";
 // Path constants
 pub static PUBLIC_PATH: &str = "/pub/";
 pub static APP_PATH: &str = "pubky.app/";
+pub static EVENTKY_PATH: &str = "eventky.app/";
 pub static PROTOCOL: &str = "pubky://";
 
 // Size limits
