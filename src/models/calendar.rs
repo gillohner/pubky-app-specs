@@ -19,7 +19,7 @@ use utoipa::ToSchema;
 const MIN_NAME_LENGTH: usize = 1;
 const MAX_NAME_LENGTH: usize = 100;
 const MAX_DESCRIPTION_LENGTH: usize = 10_000;
-const MAX_ADMINS: usize = 20;
+const MAX_AUTHORS: usize = 20;
 
 /// Represents styled description with metadata for rich content
 #[cfg_attr(target_arch = "wasm32", wasm_bindgen)]
@@ -283,7 +283,7 @@ impl Validatable for PubkyAppCalendar {
         // Sanitize author identifiers - accepts both full pubky URIs and plain public keys
         let x_pubky_authors = self.x_pubky_authors.map(|authors| {
             authors.into_iter()
-                .take(MAX_ADMINS)
+                .take(MAX_AUTHORS)
                 .filter_map(|author_value| {
                     let trimmed = author_value.trim();
                     // If it's a valid URL (full pubky URI), use it
@@ -351,7 +351,7 @@ impl Validatable for PubkyAppCalendar {
 
         // Validate author count
         if let Some(authors) = &self.x_pubky_authors {
-            if authors.len() > MAX_ADMINS {
+            if authors.len() > MAX_AUTHORS {
                 return Err("Validation Error: Too many calendar authors".into());
             }
         }
@@ -506,7 +506,7 @@ mod tests {
             "description": "My work events",
             "url": null,
             "created": 1700000000,
-            "x_pubky_admins": null
+            "x_pubky_authors": null
         }
         "##;
 
