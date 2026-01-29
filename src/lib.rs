@@ -22,6 +22,7 @@ pub use models::feed::{PubkyAppFeed, PubkyAppFeedLayout, PubkyAppFeedReach, Pubk
 pub use models::file::{PubkyAppFile, VALID_MIME_TYPES};
 pub use models::follow::PubkyAppFollow;
 pub use models::last_read::PubkyAppLastRead;
+pub use models::location::{Location, LocationType, MAX_LOCATIONS};
 pub use models::mute::PubkyAppMute;
 pub use models::post::{PubkyAppPost, PubkyAppPostEmbed, PubkyAppPostKind};
 pub use models::tag::PubkyAppTag;

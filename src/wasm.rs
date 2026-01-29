@@ -448,8 +448,6 @@ impl PubkySpecsBuilder {
         dtend_tzid: Option<String>,
         description: Option<String>,
         status: Option<String>,
-        location: Option<String>,
-        geo: Option<String>,
         image_uri: Option<String>,
         url: Option<String>,
         rrule: Option<String>,
@@ -486,12 +484,6 @@ impl PubkySpecsBuilder {
         }
         if let Some(description_val) = description {
             event = event.with_description(description_val);
-        }
-        if let Some(location_val) = location {
-            event = event.with_location(location_val);
-        }
-        if let Some(geo_val) = geo {
-            event = event.with_geo(geo_val);
         }
         if let Some(status_val) = status {
             event = event.with_status(status_val);

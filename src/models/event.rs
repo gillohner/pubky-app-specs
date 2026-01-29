@@ -1,8 +1,9 @@
 use crate::{
     common::timestamp,
     models::calendar::StyledDescription,
+    models::location::{Location, MAX_LOCATIONS},
     traits::{HasIdPath, TimestampId, Validatable},
-    validation::{is_valid_datetime, is_valid_duration, is_valid_geo, is_valid_timezone},
+    validation::{is_valid_datetime, is_valid_duration, is_valid_timezone},
     EVENTKY_PATH, PUBLIC_PATH,
 };
 use serde::{Deserialize, Serialize};
@@ -22,7 +23,6 @@ const MAX_UID_LENGTH: usize = 255;
 const MIN_SUMMARY_LENGTH: usize = 1;
 const MAX_SUMMARY_LENGTH: usize = 500;
 const MAX_DESCRIPTION_LENGTH: usize = 10_000;
-const MAX_LOCATION_LENGTH: usize = 1000;
 const MAX_CALENDAR_URIS: usize = 10;
 
 /// Valid event status values
@@ -63,11 +63,11 @@ pub struct PubkyAppEvent {
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen(skip))]
     pub status: Option<String>,         // CONFIRMED | TENTATIVE | CANCELLED
     
-    // RFC 5545 - Location
+    // RFC 9073 - Structured Locations
+    /// Structured locations for this event (RFC 9073 VLOCATION)
+    /// First location is considered primary. Supports multiple for hybrid events.
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen(skip))]
-    pub location: Option<String>,       // Primary location text (RFC 5545 LOCATION property)
-    #[cfg_attr(target_arch = "wasm32", wasm_bindgen(skip))]
-    pub geo: Option<String>,            // Geographic coordinates "lat;lon" (RFC 5545 GEO property)
+    pub locations: Option<Vec<Location>>,
     
     // RFC 7986 - Event Publishing Extensions
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen(skip))]
@@ -117,8 +117,7 @@ impl PubkyAppEvent {
             dtend_tzid: None,
             description: None,
             status: Some("CONFIRMED".to_string()),
-            location: None,
-            geo: None,
+            locations: None,
             image_uri: None,
             url: None,
             sequence: Some(0),
@@ -147,15 +146,15 @@ impl PubkyAppEvent {
         self.sanitize()
     }
 
-    /// Helper method to add a location
-    pub fn with_location(mut self, location: String) -> Self {
-        self.location = Some(location);
+    /// Helper method to add structured locations (RFC 9073)
+    pub fn with_locations(mut self, locations: Vec<Location>) -> Self {
+        self.locations = Some(locations);
         self.sanitize()
     }
 
-    /// Helper method to add geographic coordinates
-    pub fn with_geo(mut self, geo: String) -> Self {
-        self.geo = Some(geo);
+    /// Helper method to add a single location
+    pub fn with_location_item(mut self, location: Location) -> Self {
+        self.locations = Some(vec![location]);
         self.sanitize()
     }
 
@@ -215,13 +214,8 @@ impl PubkyAppEvent {
     }
 
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen(getter))]
-    pub fn location(&self) -> Option<String> {
-        self.location.clone()
-    }
-
-    #[cfg_attr(target_arch = "wasm32", wasm_bindgen(getter))]
-    pub fn geo(&self) -> Option<String> {
-        self.geo.clone()
+    pub fn locations(&self) -> Option<Vec<Location>> {
+        self.locations.clone()
     }
 
     #[cfg_attr(target_arch = "wasm32", wasm_bindgen(getter))]
@@ -322,21 +316,6 @@ impl Validatable for PubkyAppEvent {
             desc.trim().chars().take(MAX_DESCRIPTION_LENGTH).collect()
         });
         
-        // Sanitize location
-        let location = self.location.map(|loc| {
-            loc.trim().chars().take(MAX_LOCATION_LENGTH).collect()
-        });
-        
-        // Sanitize and validate geographic coordinates
-        let geo = self.geo.and_then(|g| {
-            let g = g.trim();
-            if is_valid_geo(g) {
-                Some(g.to_string())
-            } else {
-                None
-            }
-        });
-        
         // Sanitize status (normalize to uppercase)
         let status = self.status.map(|s| {
             let s = s.trim().to_uppercase();
@@ -410,6 +389,14 @@ impl Validatable for PubkyAppEvent {
             }
         });
         
+        // Sanitize locations (limit count and sanitize each)
+        let locations = self.locations.map(|locs| {
+            locs.into_iter()
+                .take(MAX_LOCATIONS)
+                .map(|loc| loc.sanitize())
+                .collect::<Vec<_>>()
+        }).filter(|locs| !locs.is_empty());
+        
         Self {
             uid,
             dtstamp: self.dtstamp,
@@ -421,8 +408,7 @@ impl Validatable for PubkyAppEvent {
             dtend_tzid,
             description,
             status,
-            location,
-            geo,
+            locations,
             image_uri,
             url,
             sequence: self.sequence,
@@ -499,10 +485,18 @@ impl Validatable for PubkyAppEvent {
             }
         }
 
-        // Validate location length
-        if let Some(loc) = &self.location {
-            if loc.chars().count() > MAX_LOCATION_LENGTH {
-                return Err("Validation Error: Event location exceeds maximum length".into());
+        // Validate structured locations
+        if let Some(locations) = &self.locations {
+            if locations.len() > MAX_LOCATIONS {
+                return Err(format!(
+                    "Validation Error: Too many locations (max {})",
+                    MAX_LOCATIONS
+                ));
+            }
+            for (i, loc) in locations.iter().enumerate() {
+                if let Err(e) = loc.validate(None) {
+                    return Err(format!("Validation Error: Location {}: {}", i + 1, e));
+                }
             }
         }
 
@@ -545,6 +539,8 @@ mod tests {
 
     #[test]
     fn test_new_complex() {
+        use crate::Location;
+        
         let event = PubkyAppEvent::new(
             "complex-event-456".to_string(),
             "2025-12-01T14:00:00".to_string(),
@@ -552,15 +548,14 @@ mod tests {
         )
         .with_end_time("2025-12-01T18:00:00".to_string())
         .with_description("Annual company conference with presentations".to_string())
-        .with_location("Convention Center".to_string())
-        .with_geo("47.3769;8.5417".to_string()); // Zurich coordinates
+        .with_location_item(Location::physical("Convention Center"));
 
         assert_eq!(event.uid, "complex-event-456");
         assert_eq!(event.dtstart, "2025-12-01T14:00:00");
         assert_eq!(event.dtend, Some("2025-12-01T18:00:00".to_string()));
         assert_eq!(event.summary, "Annual Conference");
-        assert_eq!(event.location, Some("Convention Center".to_string()));
-        assert_eq!(event.geo, Some("47.3769;8.5417".to_string()));
+        assert!(event.locations.is_some());
+        assert_eq!(event.locations.as_ref().unwrap()[0].name, "Convention Center");
     }
 
     #[test]
@@ -677,28 +672,13 @@ mod tests {
             "  Team Meeting  ".to_string(), // summary
         )
         .with_description("  Meeting description  ".to_string())
-        .with_status("  confirmed  ".to_string()) // lowercase
-        .with_location("  Conference Room  ".to_string())
-        .with_geo("  47.3769;8.5417  ".to_string());
+        .with_status("  confirmed  ".to_string()); // lowercase
 
         assert_eq!(event.uid, "event-123");
         assert_eq!(event.dtstart, "2025-12-01T10:00:00");
         assert_eq!(event.summary, "Team Meeting");
         assert_eq!(event.description, Some("Meeting description".to_string()));
         assert_eq!(event.status, Some("CONFIRMED".to_string()));
-        assert_eq!(event.location, Some("Conference Room".to_string()));
-        assert_eq!(event.geo, Some("47.3769;8.5417".to_string()));
-    }
-
-    #[test]
-    fn test_geo_validation() {
-        assert!(is_valid_geo("47.3769;8.5417"));
-        assert!(is_valid_geo("-90.0;-180.0"));
-        assert!(is_valid_geo("0;0"));
-        assert!(!is_valid_geo("47.3769"));       // Missing semicolon
-        assert!(!is_valid_geo("47.3769;"));      // Missing longitude
-        assert!(!is_valid_geo(";8.5417"));       // Missing latitude
-        assert!(!is_valid_geo("invalid;coords")); // Not numbers
     }
 
     #[test]
@@ -736,8 +716,7 @@ mod tests {
             "dtend_tzid": "Europe/Zurich",
             "description": "Weekly team sync meeting",
             "status": "CONFIRMED",
-            "location": "Conference Room A",
-            "geo": "47.3769;8.5417",
+            "locations": [{"name": "Conference Room A", "location_type": "PHYSICAL"}],
             "image_uri": null,
             "url": "https://example.com/meeting",
             "sequence": 0,
@@ -766,6 +745,7 @@ mod tests {
         assert_eq!(event_parsed.uid, "event-123");
         assert_eq!(event_parsed.dtstart, "2025-12-01T10:00:00");
         assert_eq!(event_parsed.summary, "Team Meeting");
-        assert_eq!(event_parsed.location, Some("Conference Room A".to_string()));
+        assert!(event_parsed.locations.is_some());
+        assert_eq!(event_parsed.locations.as_ref().unwrap()[0].name, "Conference Room A");
     }
 }

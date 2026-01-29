@@ -1,335 +1,254 @@
-# Pubky App Specs · `pubky-app-specs`
+# Pubky.app Data Model Specification
 
-[![npm version](https://img.shields.io/npm/v/pubky-app-specs)](https://www.npmjs.com/package/pubky-app-specs)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+_Version 0.4.0_
 
-A WASM library for building and validating structured JSON models compatible with Pubky.App social powered by [`@synonymdev/pubky`](https://www.npmjs.com/package/@synonymdev/pubky). It handles domain objects like **Users**, **Posts**, **Feeds**, **Bookmarks**, **Tags**, and more. Each object is:
+> ⚠️ **Warning: Rapid Development Phase**  
+> This specification is in an **early development phase** and is evolving quickly. Expect frequent changes and updates as the system matures. Consider this a **v0 draft**.
+>
+> When we reach the first stable, long-term support version of the schemas, paths will adopt the format: `pubky.app/v1/` to indicate compatibility and stability.
 
-- **Sanitized** and **Validated** via Rust logic.
-- **Auto-ID’ed** and **Auto-Pathed** according to your domain rules.
-- **Exported** to JavaScript/TypeScript with minimal overhead.
+### JS package
 
-## 🤔 Why Use This Crate Instead of [Manual JSONs](https://github.com/pubky/pubky-app-specs?tab=readme-ov-file#data-models)?
-
-- **Validation Consistency**: Ensures your app uses the same sanitization and validation rules as [Pubky indexers](https://github.com/pubky/pubky-nexus), avoiding errors.
-- **Schema Versioning**: Automatically stay up-to-date with schema changes, reducing maintenance overhead.
-- **Auto IDs & Paths**: Generates unique IDs, paths, and URLs according to Pubky standards.
-- **Rust-to-JavaScript Compatibility**: Type-safe models that work seamlessly across Rust and JavaScript/TypeScript.
-- **Future-Proof**: Easily adapt to new Pubky object types without rewriting JSON manually.
-
----
-
-## ⚙️ Installation
+The package is available as an npm module [pubky-app-specs](https://www.npmjs.com/package/pubky-app-specs). Alternatively, you can build from source using the provided build scripts:
 
 ```bash
-npm install pubky-app-specs
-# or
-yarn add pubky-app-specs
+cd pkg
+npm run build
 ```
 
-> **Note**: This package uses WASM with embedded bytes for automatic initialization. No manual WASM loading required - just import and use!
+Test with:
 
----
+```bash
+cd pkg
+npm run install
+npm run test
+```
 
-## 🚀 Quick Start
+Examples with:
 
-1. **Import** the library.
-2. **Construct** a `PubkySpecsBuilder(pubkyId)` object.
-3. **Create** validated domain objects (User, Post, Tag, etc.).
-4. **Store** them on the [PubKy homeserver](https://github.com/synonymdev/pubky) or any distributed storage solution you prefer.
-
-### Import & Usage
-
-```js
-// ES Modules
-import { PubkySpecsBuilder } from "pubky-app-specs";
-
-// OR CommonJS
-const { PubkySpecsBuilder } = require("pubky-app-specs");
-
-function loadSpecs(pubkyId) {
-  // Create a specs builder instance - WASM is already initialized
-  const specs = new PubkySpecsBuilder(pubkyId);
-  return specs;
-}
+```bash
+cd pkg
+npm run example
 ```
 
 ---
 
-## 🎨 Example Usage
+## Table of Contents
 
-Below are **succinct** examples to illustrate how to create or update data using **`pubky-app-specs`** and then **store** it with [`@synonymdev/pubky`](https://www.npmjs.com/package/@synonymdev/pubky).
+- [Pubky.app Data Model Specification](#pubkyapp-data-model-specification)
+    - [JS package](#js-package)
+  - [Table of Contents](#table-of-contents)
+  - [Introduction](#introduction)
+  - [Quick Start](#quick-start)
+    - [Concepts:](#concepts)
+  - [Data Models](#data-models)
+    - [PubkyAppUser](#pubkyappuser)
+    - [PubkyAppFile](#pubkyappfile)
+    - [PubkyAppPost](#pubkyapppost)
+    - [PubkyAppTag](#pubkyapptag)
+    - [PubkyAppBookmark](#pubkyappbookmark)
+    - [PubkyAppFollow](#pubkyappfollow)
+    - [PubkyAppFeed](#pubkyappfeed)
+  - [Validation Rules](#validation-rules)
+    - [Common Rules](#common-rules)
+  - [License](#license)
 
-### 1) Creating a New User
+---
 
-```js
-import { Client, PublicKey } from "@synonymdev/pubky";
-import { PubkySpecsBuilder } from "pubky-app-specs";
+## Introduction
 
-async function createUser(pubkyId) {
-  const client = new Client();
-  const specs = new PubkySpecsBuilder(pubkyId);
+This document specifies the data models and validation rules for the **Pubky.app** clients interactions. It defines the structure of data entities, their properties, and the validation rules to ensure data integrity and consistency. This is intended for developers building compatible libraries or clients.
 
-  // Create user object with minimal fields
-  const {user, meta} = specs.createUser(
-    "Alice", // Name
-    "Hello from WASM", // Bio
-    null, // Image URL or File
-    null, // Links
-    "active" // Status
-  );
+This document intents to be a faithful representation of our [Rust pubky.app models](https://github.com/pubky/pubky-app-specs/tree/main/src). If you intend to develop in Rust, use them directly. In case of disagreement between this document and the Rust implementation, the Rust implementation prevails.
 
-  // meta contains { id, path, url }.
-  // user is the Rust "PubkyAppUser" object.
+---
 
-  // We bring the Rust object to JS using the .toJson() method.
-  const userJson = user.toJson();
+## Quick Start
 
-  // Store in homeserver via pubky
-  const response = await client.fetch(meta.url, {
-    method: "PUT",
-    body: JSON.stringify(userJson),
-    credentials: "include",
-  });
+Pubky.app models are designed for decentralized content sharing. The system uses a combination of timestamp-based IDs and Blake3-hashed IDs encoded in Crockford Base32 to ensure unique identifiers for each entity.
 
-  if (!response.ok) {
-    throw new Error(`Failed to store user: ${response.statusText}`);
-  }
+### Concepts:
 
-  console.log("User stored at:", meta.url);
-  return { user, meta };
-}
-```
+- **Timestamp IDs** for sequential objects like posts and files.
+- **Hash IDs** for content-based uniqueness (e.g., tags and bookmarks).
+- **Validation Rules** ensure consistent and interoperable data formats.
 
-### 2) Creating a Post
+---
 
-```js
-import { Client } from "@synonymdev/pubky";
-import { PubkySpecsBuilder, PubkyAppPostKind } from "pubky-app-specs";
+## Data Models
 
-async function createPost(pubkyId, content) {
-  const client = new Client();
-  const specs = new PubkySpecsBuilder(pubkyId);
+### PubkyAppUser
 
-  // Create the Post object
-  const {post, meta} = specs.createPost(
-    content,
-    PubkyAppPostKind.Short,
-    null, // parent post URI (for replies)
-    null, // embed object (for reposts)
-    null  // attachments (array of file URLs, max 3)
-  );
+**Description:** Represents a user's profile information.
 
-  // Store the post
-  const postJson = post.toJson();
-  await client.fetch(meta.url, {
-    method: "PUT",
-    body: JSON.stringify(postJson),
-  });
+**URI:** `/pub/pubky.app/profile.json`
 
-  console.log("Post stored at:", meta.url);
-  return {post, meta};
-}
-```
+| **Field** | **Type** | **Description**                         | **Validation Rules**                                                                         |
+| --------- | -------- | --------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `name`    | String   | User's name.                            | Required. Length: 3–50 characters. Cannot be `"[DELETED]"`.                                  |
+| `bio`     | String   | Short biography.                        | Optional. Maximum length: 160 characters.                                                    |
+| `image`   | String   | URL to the user's profile image.        | Optional. Valid URL. Maximum length: 300 characters.                                         |
+| `links`   | Array    | List of associated links (title + URL). | Optional. Maximum of 5 links, each with title (100 chars max) and valid URL (300 chars max). |
+| `status`  | String   | User's current status.                  | Optional. Maximum length: 50 characters.                                                     |
 
-### 3) Creating a Post with Attachments
+**Validation Notes:**
 
-```js
-import { Client } from "@synonymdev/pubky";
-import { PubkySpecsBuilder, PubkyAppPostKind } from "pubky-app-specs";
+- Reserved keyword `[DELETED]` cannot be used for `name`.
+- Each `UserLink` in `links` must have a valid title and URL.
 
-async function createPostWithAttachments(pubkyId, content, fileUrls) {
-  const client = new Client();
-  const specs = new PubkySpecsBuilder(pubkyId);
+**Example: Valid User**
 
-  // Create post with attachments (max 3 allowed)
-  const {post, meta} = specs.createPost(
-    content,
-    PubkyAppPostKind.Image,
-    null, // parent
-    null, // embed
-    fileUrls // e.g. ["pubky://user/pub/pubky.app/files/abc123"]
-  );
-
-  const postJson = post.toJson();
-  console.log("Attachments:", postJson.attachments);
-
-  await client.fetch(meta.url, {
-    method: "PUT",
-    body: JSON.stringify(postJson),
-  });
-
-  console.log("Post with attachments stored at:", meta.url);
-  return {post, meta};
-}
-```
-
-### 4) Following a User
-
-```js
-import { Client } from "@synonymdev/pubky";
-import { PubkySpecsBuilder } from "pubky-app-specs";
-
-async function followUser(myPubkyId, userToFollow) {
-  const client = new Client();
-  const specs = new PubkySpecsBuilder(myPubkyId);
-
-  const {follow, meta} = specs.createFollow(userToFollow);
-
-  // We only need to store the JSON in the homeserver
-  await client.fetch(meta.url, {
-    method: "PUT",
-    body: JSON.stringify(follow.toJson()),
-  });
-
-  console.log(`Successfully followed: ${userToFollow}`);
+```json
+{
+  "name": "Alice",
+  "bio": "Toxic maximalist.",
+  "image": "pubky://user_id/pub/pubky.app/files/0000000000000",
+  "links": [
+    {
+      "title": "GitHub",
+      "url": "https://github.com/alice"
+    }
+  ],
+  "status": "Exploring decentralized tech."
 }
 ```
 
 ---
 
-## 📁 Additional Models
+### PubkyAppFile
 
-This library supports many more domain objects beyond `User` and `Post`. Here are a few more you can explore:
+**Description:** Represents a file uploaded by the user, containing its metadata, including a reference to the actual blob of the file in `src` property.
 
-- **Feeds**: `createFeed(...)`
-- **Bookmarks**: `createBookmark(...)`
-- **Tags**: `createTag(...)`
-- **Mutes**: `createMute(...)`
-- **Follows**: `createFollow(...)`
-- **LastRead**: `createLastRead(...)`
-- **Blobs**: `createBlob(...)`
-- **Files**: `createFile(...)`
+**URI:** `/pub/pubky.app/files/:file_id`
 
-Each has a `meta` field for storing relevant IDs/paths and a typed data object.
+| **Field**      | **Type** | **Description**             | **Validation Rules**                           |
+| -------------- | -------- | --------------------------- | ---------------------------------------------- |
+| `name`         | String   | Name of the file.           | Required. Must be 1-255 characters             |
+| `created_at`   | Integer  | Unix timestamp of creation. | Required.                                      |
+| `src`          | String   | File blob URL               | Required. must be a valid URL. Max length 1024 |
+| `content_type` | String   | MIME type of the file.      | Required. Valid IANA mime types                |
+| `size`         | Integer  | Size of the file in bytes.  | Required. Positive integer. Max size is 10Mb   |
 
-### Creating a File with Blob
+**Validation Notes:**
 
-```js
-import { Client } from "@synonymdev/pubky";
-import { PubkySpecsBuilder, getValidMimeTypes } from "pubky-app-specs";
+- The `file_id` in the URI must be a valid **Timestamp ID**.
 
-async function uploadFile(pubkyId, fileData, fileName, contentType, fileSize) {
-  const client = new Client();
-  const specs = new PubkySpecsBuilder(pubkyId);
+---
 
-  // First, create and store the blob (raw binary data)
-  const { blob, meta: blobMeta } = specs.createBlob(fileData);
-  
-  await client.fetch(blobMeta.url, {
-    method: "PUT",
-    body: JSON.stringify(blob.toJson()),
-  });
+### PubkyAppPost
 
-  // Then create the file metadata pointing to the blob
-  const { file, meta: fileMeta } = specs.createFile(
-    fileName,       // e.g. "vacation-photo.jpg"
-    blobMeta.url,   // Reference to the blob
-    contentType,    // e.g. "image/jpeg"
-    fileSize        // Size in bytes
-  );
+**Description:** Represents a user's post.
 
-  await client.fetch(fileMeta.url, {
-    method: "PUT",
-    body: JSON.stringify(file.toJson()),
-  });
+**URI:** `/pub/pubky.app/posts/:post_id`
 
-  console.log("File stored at:", fileMeta.url);
-  return { file, meta: fileMeta };
+| **Field**     | **Type** | **Description**                      | **Validation Rules**                                                       |
+| ------------- | -------- | ------------------------------------ | -------------------------------------------------------------------------- |
+| `content`     | String   | Content of the post.                 | Required. Max length: 2000 (short), 50000 (long). Cannot be `"[DELETED]"`. |
+| `kind`        | String   | Type of post.                        | Required. Must be a valid `PubkyAppPostKind` value.                        |
+| `parent`      | String   | URI of the parent post (if a reply). | Optional. Must be a valid URI if present.                                  |
+| `embed`       | Object   | Reposted content (type + URI).       | Optional. URI must be valid if present.                                    |
+| `attachments` | Array    | List of attachment URIs.             | Optional. Each must be a valid URI.                                        |
+
+**Post Kinds:**
+
+- `short`
+- `long`
+- `image`
+- `video`
+- `link`
+- `file`
+
+**Example: Valid Post**
+
+```json
+{
+  "content": "Hello world! This is my first post.",
+  "kind": "short",
+  "parent": null,
+  "embed": {
+    "kind": "short",
+    "uri": "pubky://user_id/pub/pubky.app/posts/0000000000000"
+  },
+  "attachments": ["pubky://user_id/pub/pubky.app/files/0000000000000"]
 }
 ```
 
 ---
 
-## ✅ Validating File MIME Types
+### PubkyAppTag
 
-Use `getValidMimeTypes()` to get the list of allowed MIME types for file attachments. This helps validate files before upload without duplicating the validation list.
+**Description:** Represents a tag applied to a URI.
 
-```js
-import { getValidMimeTypes } from "pubky-app-specs";
+**URI:** `/pub/pubky.app/tags/:tag_id`
 
-// Get the list of valid MIME types
-const validMimeTypes = getValidMimeTypes();
-// Returns: ["application/javascript", "application/json", "application/pdf", "image/png", ...]
+| **Field**    | **Type** | **Description**             | **Validation Rules**                                     |
+| ------------ | -------- | --------------------------- | -------------------------------------------------------- |
+| `uri`        | String   | URI of the tagged object.   | Required. Must be a valid URI.                           |
+| `label`      | String   | Label for the tag.          | Required. Trimmed, lowercase. Max length: 20 characters. |
+| `created_at` | Integer  | Unix timestamp of creation. | Required.                                                |
 
-// Validate a file before upload
-function isValidFileType(mimeType) {
-  return validMimeTypes.includes(mimeType);
-}
+**Validation Notes:**
 
-// Example usage
-if (isValidFileType(file.type)) {
-  // Proceed with upload
-} else {
-  console.error(`Invalid file type: ${file.type}`);
-}
-```
-
-## 🔗 URI Builder Utilities
-
-These helper functions construct properly formatted Pubky URIs:
-
-```js
-import {
-  userUriBuilder,
-  postUriBuilder,
-  bookmarkUriBuilder,
-  followUriBuilder,
-  tagUriBuilder,
-  muteUriBuilder,
-  lastReadUriBuilder,
-  blobUriBuilder,
-  fileUriBuilder,
-  feedUriBuilder,
-} from "pubky-app-specs";
-
-const userId = "8kkppkmiubfq4pxn6f73nqrhhhgkb5xyfprntc9si3np9ydbotto";
-const targetUserId = "dzswkfy7ek3bqnoc89jxuqqfbzhjrj6mi8qthgbxxcqkdugm3rio";
-
-// Build URIs for different resources
-userUriBuilder(userId);                    // pubky://{userId}/pub/pubky.app/profile.json
-postUriBuilder(userId, "0033SSE3B1FQ0");   // pubky://{userId}/pub/pubky.app/posts/{postId}
-bookmarkUriBuilder(userId, "ABC123");      // pubky://{userId}/pub/pubky.app/bookmarks/{bookmarkId}
-followUriBuilder(userId, targetUserId);    // pubky://{userId}/pub/pubky.app/follows/{targetUserId}
-tagUriBuilder(userId, "XYZ789");           // pubky://{userId}/pub/pubky.app/tags/{tagId}
-muteUriBuilder(userId, targetUserId);      // pubky://{userId}/pub/pubky.app/mutes/{targetUserId}
-lastReadUriBuilder(userId);                // pubky://{userId}/pub/pubky.app/last_read
-blobUriBuilder(userId, "BLOB123");         // pubky://{userId}/pub/pubky.app/blobs/{blobId}
-fileUriBuilder(userId, "FILE456");         // pubky://{userId}/pub/pubky.app/files/{fileId}
-feedUriBuilder(userId, "FEED789");         // pubky://{userId}/pub/pubky.app/feeds/{feedId}
-```
+- The `tag_id` is a **Hash ID** derived from the `uri` and `label`.
 
 ---
 
-## 📌 Parsing a Pubky URI
+### PubkyAppBookmark
 
-The `parse_uri()` function converts a Pubky URI string into a strongly typed object.
+**Description:** Represents a bookmark to a URI.
 
-**Usage:**
+**URI:** `/pub/pubky.app/bookmarks/:bookmark_id`
 
-```js
-import { parse_uri } from "pubky-app-specs";
+| **Field**    | **Type** | **Description**        | **Validation Rules**           |
+| ------------ | -------- | ---------------------- | ------------------------------ |
+| `uri`        | String   | URI of the bookmark.   | Required. Must be a valid URI. |
+| `created_at` | Integer  | Timestamp of creation. | Required.                      |
 
-try {
-  const result = parse_uri("pubky://userID/pub/pubky.app/posts/postID");
-  console.log(result.user_id); // "userID"
-  console.log(result.resource); // e.g. "posts"
-  console.log(result.resource_id); // "postID" or null
-} catch (error) {
-  console.error("URI parse error:", error);
-}
-```
+**Validation Notes:**
 
-**Returns:**
-
-A `ParsedUriResult` object with:
-
-- **user_id:** The parsed user identifier.
-- **resource:** A string indicating the resource type.
-- **resource_id:** An optional resource identifier.
+- The `bookmark_id` is a **Hash ID** derived from the `uri`.
 
 ---
 
-## 📄 License
+### PubkyAppFollow
 
-MIT
+**Description:** Represents a follow relationship.
+
+**URI:** `/pub/pubky.app/follows/:user_id`
+
+| **Field**    | **Type** | **Description**        | **Validation Rules** |
+| ------------ | -------- | ---------------------- | -------------------- |
+| `created_at` | Integer  | Timestamp of creation. | Required.            |
+
+---
+
+### PubkyAppFeed
+
+**Description:** Represents a feed configuration.
+
+**URI:** `/pub/pubky.app/feeds/:feed_id`
+
+| **Field** | **Type** | **Description**                           | **Validation Rules**               |
+| --------- | -------- | ----------------------------------------- | ---------------------------------- |
+| `tags`    | Array    | List of tags for filtering.               | Optional. Strings must be trimmed. |
+| `reach`   | String   | Feed visibility (e.g., `all`, `friends`). | Required. Must be a valid reach.   |
+| `layout`  | String   | Feed layout style (e.g., `columns`).      | Required. Must be valid layout.    |
+| `sort`    | String   | Sort order (e.g., `recent`).              | Required. Must be valid sort.      |
+| `content` | String   | Type of content filtered.                 | Optional.                          |
+| `name`    | String   | Name of the feed.                         | Required.                          |
+
+---
+
+## Validation Rules
+
+### Common Rules
+
+1. **Timestamp IDs:** 13-character Crockford Base32 strings derived from timestamps (in microseconds).
+2. **Hash IDs:** First half of the bytes from the resulting Blake3-hashed strings encoded in Crockford Base32.
+3. **URLs:** All URLs must pass standard validation.
+
+---
+
+## License
+
+This specification is released under the MIT License.

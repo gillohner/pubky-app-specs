@@ -12,6 +12,7 @@ pub mod feed;
 pub mod file;
 pub mod follow;
 pub mod last_read;
+pub mod location;
 pub mod mute;
 pub mod post;
 pub mod tag;
