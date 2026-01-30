@@ -1,1 +1,2 @@
-*
+# Ignore nothing - all pkg files needed for JSR publish
+!*
