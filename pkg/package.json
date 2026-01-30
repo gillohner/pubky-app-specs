@@ -1,12 +1,12 @@
 {
-  "name": "pubky-app-specs",
+  "name": "@eventky/pubky-app-specs",
   "type": "module",
-  "description": "Pubky.app Data Model Specifications",
+  "description": "Pubky.app Data Model Specifications including Eventky.app Extensions",
   "version": "0.4.0",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/pubky/pubky-app-specs"
+    "url": "https://github.com/gillohner/pubky-app-specs"
   },
   "files": [
     "pubky_app_specs_bg.wasm",
@@ -15,7 +15,7 @@
     "pubky_app_specs.d.ts"
   ],
   "main": "pubky_app_specs.js",
-  "homepage": "https://pubky.app",
+  "homepage": "https://eventky.app",
   "types": "pubky_app_specs.d.ts",
   "sideEffects": [
     "./pubky_app_specs.js",
