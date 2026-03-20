@@ -85,6 +85,9 @@ impl PubkyAppObject {
                 let last_read = <PubkyAppLastRead as Validatable>::try_from(blob, "")?;
                 Ok(PubkyAppObject::LastRead(last_read))
             }
+            Resource::External { .. } => Err(
+                "External resources are handled by domain plugins, not pubky-app-specs".to_string(),
+            ),
             Resource::Unknown => Err(format!("Unrecognized resource {:?}", resource)),
         }
     }

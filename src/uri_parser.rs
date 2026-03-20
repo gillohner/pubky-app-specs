@@ -21,6 +21,13 @@ pub enum Resource {
     Blob(String),
     Feed(String),
     LastRead,
+    /// A resource under a non-pubky.app namespace.
+    /// Parsed generically as resource_type + id from the URI path.
+    External {
+        app_path: String,       // e.g. "mapky.app", "eventky.app"
+        resource_type: String,  // e.g. "posts", "places", "events"
+        id: String,             // the resource ID
+    },
     #[default]
     Unknown,
 }
@@ -40,6 +47,7 @@ impl fmt::Display for Resource {
             Resource::File(_) => PubkyAppFile::PATH_SEGMENT.trim_end_matches('/'),
             Resource::Blob(_) => PubkyAppBlob::PATH_SEGMENT.trim_end_matches('/'),
             Resource::Feed(_) => PubkyAppFeed::PATH_SEGMENT.trim_end_matches('/'),
+            Resource::External { resource_type, .. } => resource_type.as_str(),
             Resource::Unknown => "unknown",
         };
         write!(f, "{}", name)
@@ -59,6 +67,7 @@ impl Resource {
             Resource::File(id) => Some(id.clone()),
             Resource::Blob(id) => Some(id.clone()),
             Resource::Feed(id) => Some(id.clone()),
+            Resource::External { id, .. } => Some(id.clone()),
             // The following variants do not carry an id.
             Resource::User | Resource::LastRead | Resource::Unknown => None,
         }
@@ -68,6 +77,8 @@ impl Resource {
 #[derive(Debug, Default, Clone, Serialize, Deserialize)]
 pub struct ParsedUri {
     pub user_id: PubkyId,
+    /// The app namespace segment, e.g. `"pubky.app"`, `"mapky.app"`.
+    pub app_path: String,
     pub resource: Resource,
 }
 
@@ -88,6 +99,11 @@ impl ParsedUri {
             Resource::File(id) => PubkyAppFile::create_path(id),
             Resource::Blob(id) => PubkyAppBlob::create_path(id),
             Resource::Feed(id) => PubkyAppFeed::create_path(id),
+            Resource::External {
+                app_path,
+                resource_type,
+                id,
+            } => format!("/pub/{app_path}/{resource_type}/{id}"),
             Resource::Unknown => return Err("Cannot convert Unknown resource to URI".to_string()),
         };
 
@@ -131,43 +147,59 @@ impl TryFrom<&str> for ParsedUri {
                 PUBLIC_PATH, segments[0], uri
             ));
         }
-        if segments[1] != APP_PATH.trim_matches('/') {
-            return Err(format!(
-                "Expected app path '{}' but got '{}' in URI: {}",
-                APP_PATH, segments[1], uri
-            ));
-        }
+        // Capture the app namespace (e.g. "pubky.app", "mapky.app").
+        let app_path = segments[1].to_string();
+        let is_pubky_app = app_path == APP_PATH.trim_matches('/');
 
         // 4. Determine the resource from the remaining segments.
-        let resource = match segments[2..] {
-            // No extra segments.
-            [] => Resource::Unknown,
-            // A single segment: must exactly match an identifier-less route.
-            [segment] => match segment {
-                PubkyAppUser::PATH_SEGMENT => Resource::User,
-                PubkyAppLastRead::PATH_SEGMENT => Resource::LastRead,
-                _ => Resource::Unknown,
-            },
-            // Two or more segments and the id is not empty.
-            [res_type, id, ..] if !id.is_empty() => {
-                let resource_type = format!("{}/", res_type);
-                match resource_type.as_str() {
-                    PubkyAppPost::PATH_SEGMENT => Resource::Post(id.to_string()),
-                    PubkyAppFollow::PATH_SEGMENT => PubkyId::try_from(id).map(Resource::Follow)?,
-                    PubkyAppMute::PATH_SEGMENT => PubkyId::try_from(id).map(Resource::Mute)?,
-                    PubkyAppBookmark::PATH_SEGMENT => Resource::Bookmark(id.to_string()),
-                    PubkyAppTag::PATH_SEGMENT => Resource::Tag(id.to_string()),
-                    PubkyAppFile::PATH_SEGMENT => Resource::File(id.to_string()),
-                    PubkyAppBlob::PATH_SEGMENT => Resource::Blob(id.to_string()),
-                    PubkyAppFeed::PATH_SEGMENT => Resource::Feed(id.to_string()),
+        let resource = if is_pubky_app {
+            // Known namespace — parse to typed Resource variants.
+            match segments[2..] {
+                // No extra segments.
+                [] => Resource::Unknown,
+                // A single segment: must exactly match an identifier-less route.
+                [segment] => match segment {
+                    PubkyAppUser::PATH_SEGMENT => Resource::User,
+                    PubkyAppLastRead::PATH_SEGMENT => Resource::LastRead,
                     _ => Resource::Unknown,
+                },
+                // Two or more segments and the id is not empty.
+                [res_type, id, ..] if !id.is_empty() => {
+                    let resource_type = format!("{}/", res_type);
+                    match resource_type.as_str() {
+                        PubkyAppPost::PATH_SEGMENT => Resource::Post(id.to_string()),
+                        PubkyAppFollow::PATH_SEGMENT => {
+                            PubkyId::try_from(id).map(Resource::Follow)?
+                        }
+                        PubkyAppMute::PATH_SEGMENT => PubkyId::try_from(id).map(Resource::Mute)?,
+                        PubkyAppBookmark::PATH_SEGMENT => Resource::Bookmark(id.to_string()),
+                        PubkyAppTag::PATH_SEGMENT => Resource::Tag(id.to_string()),
+                        PubkyAppFile::PATH_SEGMENT => Resource::File(id.to_string()),
+                        PubkyAppBlob::PATH_SEGMENT => Resource::Blob(id.to_string()),
+                        PubkyAppFeed::PATH_SEGMENT => Resource::Feed(id.to_string()),
+                        _ => Resource::Unknown,
+                    }
                 }
+                // If the identifier is empty or doesn't match the expected pattern.
+                _ => Resource::Unknown,
             }
-            // If the identifier is empty or doesn't match the expected pattern.
-            _ => Resource::Unknown,
+        } else {
+            // Unknown namespace — parse generically as External.
+            match segments[2..] {
+                [res_type, id, ..] if !id.is_empty() => Resource::External {
+                    app_path: app_path.clone(),
+                    resource_type: res_type.to_string(),
+                    id: id.to_string(),
+                },
+                _ => Resource::Unknown,
+            }
         };
 
-        Ok(ParsedUri { user_id, resource })
+        Ok(ParsedUri {
+            user_id,
+            app_path,
+            resource,
+        })
     }
 }
 
@@ -357,11 +389,58 @@ mod tests {
     }
 
     #[test]
-    fn test_invalid_app_path() {
-        // Change the app path so it doesn't match.
-        let uri = format!("pubky://{USER_ID}/pub/other.app/profile.json");
-        let result = ParsedUri::try_from(uri);
-        assert!(result.is_err());
+    fn test_external_app_path() {
+        // Non-pubky.app namespaces now parse as External instead of erroring.
+        let uri = format!("pubky://{USER_ID}/pub/other.app/posts/ABC123");
+        let parsed = ParsedUri::try_from(uri).expect("Should parse external URI");
+        assert_eq!(parsed.app_path, "other.app");
+        assert_eq!(
+            parsed.resource,
+            Resource::External {
+                app_path: "other.app".to_string(),
+                resource_type: "posts".to_string(),
+                id: "ABC123".to_string(),
+            }
+        );
+    }
+
+    #[test]
+    fn test_external_resource_parsed() {
+        let uri = format!("pubky://{USER_ID}/pub/mapky.app/posts/0034TK01CC73G");
+        let parsed = ParsedUri::try_from(uri).expect("Should parse external URI");
+        assert_eq!(parsed.app_path, "mapky.app");
+        assert_eq!(
+            parsed.resource,
+            Resource::External {
+                app_path: "mapky.app".to_string(),
+                resource_type: "posts".to_string(),
+                id: "0034TK01CC73G".to_string(),
+            }
+        );
+    }
+
+    #[test]
+    fn test_external_resource_roundtrip() {
+        let uri = format!("pubky://{USER_ID}/pub/mapky.app/posts/0034TK01CC73G");
+        let parsed = ParsedUri::try_from(uri.clone()).unwrap();
+        let reconstructed = parsed.try_to_uri_str().unwrap();
+        assert_eq!(uri, reconstructed);
+    }
+
+    #[test]
+    fn test_external_resource_no_id() {
+        // Empty id segment → Resource::Unknown
+        let uri = format!("pubky://{USER_ID}/pub/mapky.app/posts/");
+        let parsed = ParsedUri::try_from(uri).unwrap();
+        assert_eq!(parsed.resource, Resource::Unknown);
+    }
+
+    #[test]
+    fn test_pubky_app_path_captured() {
+        let uri = format!("pubky://{USER_ID}/pub/pubky.app/posts/0032SSN7Q4EVG");
+        let parsed = ParsedUri::try_from(uri).unwrap();
+        assert_eq!(parsed.app_path, "pubky.app");
+        assert_eq!(parsed.resource, Resource::Post("0032SSN7Q4EVG".to_string()));
     }
 
     #[test]

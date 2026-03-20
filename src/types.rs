@@ -37,6 +37,7 @@ impl PubkyId {
     pub fn to_uri(&self) -> ParsedUri {
         ParsedUri {
             user_id: self.clone(),
+            app_path: crate::APP_PATH.trim_matches('/').to_string(),
             resource: Resource::User,
         }
     }
