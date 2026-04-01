@@ -184,13 +184,25 @@ impl TryFrom<&str> for ParsedUri {
                 _ => Resource::Unknown,
             }
         } else {
-            // Unknown namespace — parse generically as External.
+            // Non-pubky.app namespace — try shared infrastructure models first,
+            // then fall back to External for domain-specific types.
             match segments[2..] {
-                [res_type, id, ..] if !id.is_empty() => Resource::External {
-                    app_path: app_path.clone(),
-                    resource_type: res_type.to_string(),
-                    id: id.to_string(),
-                },
+                [res_type, id, ..] if !id.is_empty() => {
+                    let resource_type = format!("{}/", res_type);
+                    match resource_type.as_str() {
+                        // Infrastructure models are namespace-agnostic:
+                        // a file is a file regardless of which app stores it.
+                        PubkyAppFile::PATH_SEGMENT => Resource::File(id.to_string()),
+                        PubkyAppBlob::PATH_SEGMENT => Resource::Blob(id.to_string()),
+                        PubkyAppBookmark::PATH_SEGMENT => Resource::Bookmark(id.to_string()),
+                        // Domain-specific models → External for plugin handling
+                        _ => Resource::External {
+                            app_path: app_path.clone(),
+                            resource_type: res_type.to_string(),
+                            id: id.to_string(),
+                        },
+                    }
+                }
                 _ => Resource::Unknown,
             }
         };
@@ -587,5 +599,48 @@ mod tests {
             result.is_err(),
             "Unknown resource should fail to convert to URI string"
         );
+    }
+
+    // ── Namespace-agnostic infrastructure models ─────────────────────────
+
+    #[test]
+    fn test_file_from_plugin_namespace() {
+        let uri = format!("pubky://{USER_ID}/pub/mapky.app/files/ABC123");
+        let parsed = ParsedUri::try_from(uri).expect("Should parse plugin file URI");
+        assert_eq!(parsed.app_path, "mapky.app");
+        assert!(matches!(parsed.resource, Resource::File(ref id) if id == "ABC123"));
+    }
+
+    #[test]
+    fn test_blob_from_plugin_namespace() {
+        let uri = format!("pubky://{USER_ID}/pub/eventky.app/blobs/XYZ789");
+        let parsed = ParsedUri::try_from(uri).expect("Should parse plugin blob URI");
+        assert_eq!(parsed.app_path, "eventky.app");
+        assert!(matches!(parsed.resource, Resource::Blob(ref id) if id == "XYZ789"));
+    }
+
+    #[test]
+    fn test_bookmark_from_plugin_namespace() {
+        let uri = format!("pubky://{USER_ID}/pub/mapky.app/bookmarks/DEF456");
+        let parsed = ParsedUri::try_from(uri).expect("Should parse plugin bookmark URI");
+        assert_eq!(parsed.app_path, "mapky.app");
+        assert!(matches!(parsed.resource, Resource::Bookmark(ref id) if id == "DEF456"));
+    }
+
+    #[test]
+    fn test_domain_model_stays_external() {
+        // Posts are domain-specific — not shared infrastructure
+        let uri = format!("pubky://{USER_ID}/pub/mapky.app/posts/ABC123");
+        let parsed = ParsedUri::try_from(uri).expect("Should parse as External");
+        assert!(matches!(parsed.resource, Resource::External { ref resource_type, .. } if resource_type == "posts"));
+    }
+
+    #[test]
+    fn test_pubky_app_files_still_work() {
+        // Standard pubky.app namespace unchanged
+        let uri = format!("pubky://{USER_ID}/pub/pubky.app/files/ABC123");
+        let parsed = ParsedUri::try_from(uri).expect("Should parse pubky.app file");
+        assert_eq!(parsed.app_path, "pubky.app");
+        assert!(matches!(parsed.resource, Resource::File(ref id) if id == "ABC123"));
     }
 }
