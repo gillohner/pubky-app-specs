@@ -1,0 +1,9 @@
+{
+  "crate": "pubky-social-specs",
+  "version": "1.0.0-rc.1",
+  "commit": "c31df33175b46291a83472fecd6eea43285b4d2c",
+  "rustc": "rustc 1.99.1 (58cf8f9c3 2026-10-13)",
+  "serde_json": "1.0.149",
+  "wasmBindgen": "0.2.118",
+  "vectorsSha256": "9e454b4b800cfb0b6fd9cdb995ab5a07280469c428070348c18875cb0db6d526"
+}

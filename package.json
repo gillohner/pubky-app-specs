@@ -1,0 +1,119 @@
+{
+  "name": "pubky-social-specs",
+  "version": "1.0.0-rc.1",
+  "description": "The Pubky social data model: builders, validation and URIs as plain synchronous functions",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "typesVersions": {
+    "<5.7": {
+      "*": [
+        "./ts-too-old.d.ts"
+      ]
+    },
+    "*": {
+      "testing": [
+        "./dist/testing.d.ts"
+      ],
+      "client": [
+        "./dist/client/index.d.ts"
+      ]
+    }
+  },
+  "engines": {
+    "node": "^20.19.0 || >=22.12.0"
+  },
+  "exports": {
+    ".": {
+      "types@<5.7": "./ts-too-old.d.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./testing": {
+      "types@<5.7": "./ts-too-old.d.ts",
+      "types": "./dist/testing.d.ts",
+      "default": "./dist/testing.js"
+    },
+    "./client": {
+      "types@<5.7": "./ts-too-old.d.ts",
+      "types": "./dist/client/index.d.ts",
+      "default": "./dist/client/index.js"
+    },
+    "./reference.json": "./dist/reference.json",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "ts-too-old.d.ts",
+    "src",
+    "!src/host.d.ts",
+    "example.js",
+    "CHANGELOG.md",
+    "SECURITY.md",
+    "docs/reference.md"
+  ],
+  "scripts": {
+    "build": "RUSTFLAGS=\"--remap-path-prefix=$HOME=~\" cargo run --locked --features migrator --bin bundle_specs_npm",
+    "pretest": "tsc -p .",
+    "test": "mocha '{test,*.test}.js' && node qa/data.mjs --check && npm run examples && npm run docs:snippets",
+    "types": "tsc -p test-types",
+    "size": "node qa/size.mjs",
+    "score": "NODE_ENV=production node --max-old-space-size=1536 qa/score.mjs",
+    "conformance": "NODE_ENV=production node --max-old-space-size=1536 qa/score.mjs --fuzz 0",
+    "hostile": "node --expose-gc --max-old-space-size=1536 qa/hostile.mjs",
+    "mutation": "stryker run",
+    "tools": "npm ci --ignore-scripts --prefix tools",
+    "lint": "node tools/node_modules/eslint/bin/eslint.js -c tools/eslint.config.mjs --max-warnings 0 src",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test:src": "node --import ./qa/from-src.mjs node_modules/mocha/bin/mocha.js '{test,*.test}.js'",
+    "coverage": "node qa/coverage.mjs",
+    "examples": "node qa/examples.mjs",
+    "docs": "node tools/node_modules/typedoc/bin/typedoc --options tools/typedoc.json",
+    "docs:check": "node qa/docs.mjs --check",
+    "docs:hover": "node qa/hover.mjs",
+    "docs:snippets": "node qa/snippets.mjs",
+    "deps": "node tools/node_modules/dependency-cruiser/bin/dependency-cruiser.mjs --config tools/dependency-cruiser.cjs src",
+    "e2e": "mocha e2e/migrate.e2e.js",
+    "example": "node example.js",
+    "api": "diff -u api/index.d.ts dist/index.d.ts && diff -u api/types.d.ts dist/types.d.ts && diff -u api/validate.d.ts dist/validate.d.ts && diff -u api/testing.d.ts dist/testing.d.ts && diff -u api/client.d.ts dist/client/index.d.ts && diff -u api/session.d.ts dist/session.d.ts && diff -u api/errors.d.ts dist/errors.d.ts"
+  },
+  "dependencies": {
+    "@noble/hashes": "2.4.0"
+  },
+  "devDependencies": {
+    "@arethetypeswrong/cli": "^0.18.5",
+    "@stryker-mutator/core": "^9.6.1",
+    "@synonymdev/pubky": "^0.14.0",
+    "c8": "^12.0.0",
+    "esbuild": "^0.25.0",
+    "fast-check": "^4.10.2",
+    "mocha": "^12.0.3",
+    "playwright": "^1.64.0",
+    "prettier": "^3.9.9",
+    "publint": "^0.3.25",
+    "typescript": "^7.0.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/pubky/pubky-social-specs.git",
+    "directory": "pkg"
+  },
+  "homepage": "https://github.com/pubky/pubky-social-specs#readme",
+  "bugs": {
+    "url": "https://github.com/pubky/pubky-social-specs/issues"
+  },
+  "contributors": [
+    "SHAcollision",
+    "tipogi",
+    "ok300"
+  ],
+  "keywords": [
+    "pubky",
+    "social",
+    "specs",
+    "validation"
+  ]
+}
