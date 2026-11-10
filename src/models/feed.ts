@@ -25,6 +25,7 @@ import {
   postKind,
   type PostKind,
   postKinds,
+  resourceFamilies,
 } from "./kinds.js";
 
 export interface FeedConfig extends Extra {
@@ -38,9 +39,9 @@ export interface FeedConfig extends Extra {
   layout: FeedLayout;
   /** The order of the posts, one of `feedSorts`. A name this version does not know is refused on read. */
   sort: FeedSort;
-  /** The one post kind shown, one of `postKinds`, or a newer writer's name kept as written; null for every kind. */
+  /** The one post kind shown, one of `postKinds`, or a newer writer's name kept as written; on a `resources` feed the one resource family shown, one of `resourceFamilies`. Null for every kind. */
   content: PostKind | null;
-  /** What the feed lists, one of `feedTargets`; null for posts, the default, which a writer never stores. `resources` takes no `content` and no `domain_tags`. A name this version does not know is refused on read. */
+  /** What the feed lists, one of `feedTargets`; null for posts, the default, which a writer never stores. `resources` takes a `content` of `resourceFamilies` only and no `domain_tags`. A name this version does not know is refused on read. */
   target: FeedTarget | null;
 }
 
@@ -102,7 +103,8 @@ export const feed: Model<Feed> = {
   maxBytes: limits.objectMaxBytes,
   check(value, id, _publicRoot, each) {
     const f = value.feed;
-    // reach, layout, sort and target define the feed; an unknown content filter only means no filter
+    // reach, layout, sort and target define the feed; an unknown post kind only means no filter, while a
+    // resources feed's family is one of a closed list
     each(() => {
       if (!isKnown(feedReaches, f.reach)) fail("unknown_name", "feed reach is unknown", "reach");
     });
@@ -118,9 +120,9 @@ export const feed: Model<Feed> = {
     each(() => checkExtra(f.extra, "feed."));
     each(() => checkTagList(f.tags, "tags"));
     each(() => checkTagList(f.domain_tags, "domain_tags"));
-    // An external resource is no post and its links carry no domain tags: neither filter applies
+    // An external resource has a family, not a post kind, and its links carry no domain tags
     each(() => {
-      if (f.target === "resources" && f.content !== null) fail("conflict", "A resources feed cannot filter by content kind", "content");
+      if (f.target === "resources" && f.content !== null && !isKnown(resourceFamilies, f.content)) fail("unknown_name", "feed resource family is unknown", "content");
     });
     each(() => {
       if (f.target === "resources" && f.domain_tags !== null) fail("conflict", "A resources feed cannot filter by domain_tags", "domain_tags");
@@ -176,7 +178,15 @@ export function buildFeed(owner: string | null, input: unknown, each: Each = thr
   const layoutName = str(i.layout, "input.layout", "columns");
   const sortName = str(i.sort, "input.sort", "recent");
   const targetName = opt(i.target, "input.target", "posts");
-  const content = contentName === null ? null : member<PostKind | null>(each, () => known(postKinds, "content kind", contentName, "content"), null);
+  // A resources feed names a resource family where a post feed names a post kind
+  const content =
+    contentName === null
+      ? null
+      : member<PostKind | null>(
+          each,
+          () => (targetName === "resources" ? known(resourceFamilies, "resource family", contentName, "content") : known(postKinds, "content kind", contentName, "content")),
+          null,
+        );
   const reach = member<FeedReach>(each, () => known(feedReaches, "feed reach", reachName, "reach"), "all");
   const layout = member<FeedLayout>(each, () => known(feedLayouts, "feed layout", layoutName, "layout"), "columns");
   const sort = member<FeedSort>(each, () => known(feedSorts, "feed sort", sortName, "sort"), "recent");

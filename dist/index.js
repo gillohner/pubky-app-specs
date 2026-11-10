@@ -39,7 +39,7 @@ import * as uris from "./uri.js";
 export { ENGINE_CAPS, MIGRATION_CAPS } from "./caps.js";
 export { limits, validMimeTypes } from "./data.js";
 export { ArgumentError, ValidationError } from "./errors.js";
-export { collectionLayouts, feedLayouts, feedReaches, feedSorts, feedTargets, postKinds } from "./models/kinds.js";
+export { collectionLayouts, feedLayouts, feedReaches, feedSorts, feedTargets, postKinds, resourceFamilies, resourceFamilyRootTypes } from "./models/kinds.js";
 export { feedSchema, postSchema, tagSchema, userSchema, validateFeed, validatePost, validateTag, validateUser } from "./validate.js";
 function text(value, name) {
     if (typeof value !== "string")

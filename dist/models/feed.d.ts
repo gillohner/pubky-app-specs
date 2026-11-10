@@ -14,9 +14,9 @@ export interface FeedConfig extends Extra {
     layout: FeedLayout;
     /** The order of the posts, one of `feedSorts`. A name this version does not know is refused on read. */
     sort: FeedSort;
-    /** The one post kind shown, one of `postKinds`, or a newer writer's name kept as written; null for every kind. */
+    /** The one post kind shown, one of `postKinds`, or a newer writer's name kept as written; on a `resources` feed the one resource family shown, one of `resourceFamilies`. Null for every kind. */
     content: PostKind | null;
-    /** What the feed lists, one of `feedTargets`; null for posts, the default, which a writer never stores. `resources` takes no `content` and no `domain_tags`. A name this version does not know is refused on read. */
+    /** What the feed lists, one of `feedTargets`; null for posts, the default, which a writer never stores. `resources` takes a `content` of `resourceFamilies` only and no `domain_tags`. A name this version does not know is refused on read. */
     target: FeedTarget | null;
 }
 export interface Feed extends Extra {

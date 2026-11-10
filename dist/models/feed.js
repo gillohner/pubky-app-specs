@@ -7,7 +7,7 @@ import { asciiFold, codePointLen, compareBytes, frozenTrim } from "../text.js";
 import { socialPath } from "../path.js";
 import { checkExtra, checkSafeInt, validate } from "./common.js";
 import { checkLabel, foldLabel } from "./label.js";
-import { feedLayout, feedLayouts, feedReach, feedReaches, feedSort, feedSorts, feedTarget, feedTargets, isKnown, known, postKind, postKinds, } from "./kinds.js";
+import { feedLayout, feedLayouts, feedReach, feedReaches, feedSort, feedSorts, feedTarget, feedTargets, isKnown, known, postKind, postKinds, resourceFamilies, } from "./kinds.js";
 function checkTagList(tags, field) {
     if (tags === null)
         return;
@@ -59,7 +59,8 @@ export const feed = {
     maxBytes: limits.objectMaxBytes,
     check(value, id, _publicRoot, each) {
         const f = value.feed;
-        // reach, layout, sort and target define the feed; an unknown content filter only means no filter
+        // reach, layout, sort and target define the feed; an unknown post kind only means no filter, while a
+        // resources feed's family is one of a closed list
         each(() => {
             if (!isKnown(feedReaches, f.reach))
                 fail("unknown_name", "feed reach is unknown", "reach");
@@ -79,10 +80,10 @@ export const feed = {
         each(() => checkExtra(f.extra, "feed."));
         each(() => checkTagList(f.tags, "tags"));
         each(() => checkTagList(f.domain_tags, "domain_tags"));
-        // An external resource is no post and its links carry no domain tags: neither filter applies
+        // An external resource has a family, not a post kind, and its links carry no domain tags
         each(() => {
-            if (f.target === "resources" && f.content !== null)
-                fail("conflict", "A resources feed cannot filter by content kind", "content");
+            if (f.target === "resources" && f.content !== null && !isKnown(resourceFamilies, f.content))
+                fail("unknown_name", "feed resource family is unknown", "content");
         });
         each(() => {
             if (f.target === "resources" && f.domain_tags !== null)
@@ -142,7 +143,10 @@ export function buildFeed(owner, input, each = throwing) {
     const layoutName = str(i.layout, "input.layout", "columns");
     const sortName = str(i.sort, "input.sort", "recent");
     const targetName = opt(i.target, "input.target", "posts");
-    const content = contentName === null ? null : member(each, () => known(postKinds, "content kind", contentName, "content"), null);
+    // A resources feed names a resource family where a post feed names a post kind
+    const content = contentName === null
+        ? null
+        : member(each, () => (targetName === "resources" ? known(resourceFamilies, "resource family", contentName, "content") : known(postKinds, "content kind", contentName, "content")), null);
     const reach = member(each, () => known(feedReaches, "feed reach", reachName, "reach"), "all");
     const layout = member(each, () => known(feedLayouts, "feed layout", layoutName, "layout"), "columns");
     const sort = member(each, () => known(feedSorts, "feed sort", sortName, "sort"), "recent");

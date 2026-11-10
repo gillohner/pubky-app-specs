@@ -43,7 +43,7 @@ export { ENGINE_CAPS, MIGRATION_CAPS } from "./caps.js";
 export { limits, validMimeTypes } from "./data.js";
 export { ArgumentError, ValidationError } from "./errors.js";
 export type { ErrorCode } from "./errors.js";
-export { collectionLayouts, feedLayouts, feedReaches, feedSorts, feedTargets, postKinds } from "./models/kinds.js";
+export { collectionLayouts, feedLayouts, feedReaches, feedSorts, feedTargets, postKinds, resourceFamilies, resourceFamilyRootTypes } from "./models/kinds.js";
 export type {
   CollectionLayout,
   FeedLayout,
@@ -56,6 +56,7 @@ export type {
   KnownFeedSort,
   KnownFeedTarget,
   KnownPostKind,
+  KnownResourceFamily,
   PostKind,
 } from "./models/kinds.js";
 export type * from "./types.js";

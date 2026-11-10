@@ -54,6 +54,16 @@ export const feedSorts = Object.freeze(["recent", "popularity"]);
  */
 export const feedTargets = Object.freeze(["posts", "resources"]);
 /**
+ * The kinds of external resource a feed of `resources` may list instead of every kind, in its `content`: `music`, `video`, `podcast`, `place`, `event`, `book`, `article` and `software`.
+ *
+ * @example
+ * ```ts
+ * import { resourceFamilies } from "pubky-social-specs";
+ * console.log(resourceFamilies.includes("music"));
+ * ```
+ */
+export const resourceFamilies = Object.freeze(["music", "video", "podcast", "place", "event", "book", "article", "software"]);
+/**
  * How a creator would show a collection: `grid`, `list` and `visual`. A reader may choose its own.
  *
  * @example
@@ -63,6 +73,25 @@ export const feedTargets = Object.freeze(["posts", "resources"]);
  * ```
  */
 export const collectionLayouts = Object.freeze(["grid", "list", "visual"]);
+/**
+ * The schema.org types each resource family stands for: a resource is of the family when its type is one of these or a subtype of one.
+ *
+ * @example
+ * ```ts
+ * import { resourceFamilyRootTypes } from "pubky-social-specs";
+ * console.log(resourceFamilyRootTypes.music.join(","));
+ * ```
+ */
+export const resourceFamilyRootTypes = Object.freeze({
+    music: Object.freeze(["MusicRecording", "MusicPlaylist", "MusicGroup"]),
+    video: Object.freeze(["VideoObject", "Movie", "TVSeries"]),
+    podcast: Object.freeze(["PodcastSeries", "PodcastEpisode"]),
+    place: Object.freeze(["Place"]),
+    event: Object.freeze(["Event"]),
+    book: Object.freeze(["Book"]),
+    article: Object.freeze(["Article"]),
+    software: Object.freeze(["SoftwareApplication", "SoftwareSourceCode"]),
+});
 // A name is read and written as a string; the model's rules decide whether one this version
 // does not know is valid where it stands
 export const postKind = string;
