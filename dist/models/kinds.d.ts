@@ -50,16 +50,6 @@ export declare const feedSorts: readonly ["recent", "popularity"];
  */
 export declare const feedTargets: readonly ["posts", "resources"];
 /**
- * The kinds of external resource a feed of `resources` may list instead of every kind, in its `content`: `music`, `video`, `podcast`, `place`, `event`, `book`, `article` and `software`.
- *
- * @example
- * ```ts
- * import { resourceFamilies } from "pubky-social-specs";
- * console.log(resourceFamilies.includes("music"));
- * ```
- */
-export declare const resourceFamilies: readonly ["music", "video", "podcast", "place", "event", "book", "article", "software"];
-/**
  * How a creator would show a collection: `grid`, `list` and `visual`. A reader may choose its own.
  *
  * @example
@@ -79,18 +69,6 @@ export type KnownFeedLayout = (typeof feedLayouts)[number];
 export type KnownFeedSort = (typeof feedSorts)[number];
 /** A feed target this version knows. */
 export type KnownFeedTarget = (typeof feedTargets)[number];
-/** A resource family this version knows. */
-export type KnownResourceFamily = (typeof resourceFamilies)[number];
-/**
- * The schema.org types each resource family stands for: a resource is of the family when its type is one of these or a subtype of one.
- *
- * @example
- * ```ts
- * import { resourceFamilyRootTypes } from "pubky-social-specs";
- * console.log(resourceFamilyRootTypes.music.join(","));
- * ```
- */
-export declare const resourceFamilyRootTypes: Readonly<Record<KnownResourceFamily, readonly string[]>>;
 /** A collection layout this version knows. */
 export type KnownCollectionLayout = (typeof collectionLayouts)[number];
 /** A name of the set, or one a newer writer used, kept with its spelling. */
