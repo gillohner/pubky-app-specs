@@ -77,8 +77,16 @@ function checkFilters(f) {
         if (utf8Len(f.category) > limits.feedFilterTextMaxBytes)
             filterTooLong("category", limits.feedFilterTextMaxBytes, "size");
     }
-    if (f.host !== null)
-        check(isFilterHost(f.host), "host");
+    if (f.host !== null) {
+        const items = f.host.split(",");
+        for (const item of items)
+            check(isFilterHost(item), "host");
+        if (items.length > limits.feedFilterHostsMaxCount)
+            fail("count", `A resources feed cannot filter by more than ${limits.feedFilterHostsMaxCount} hosts`, "filters.host", limits.feedFilterHostsMaxCount);
+        for (let i = 1; i < items.length; i++)
+            if (compareBytes(items[i - 1], items[i]) >= 0)
+                fail("format", "Resource feed filter host must be stored deduplicated and sorted by code point", "filters.host");
+    }
     if (f.key !== null) {
         const colon = f.key.indexOf(":");
         const value = f.key.slice(colon + 1);
@@ -313,7 +321,7 @@ export function feedId(value) {
     validate(feed, value, null, false);
     return idOf(value);
 }
-// A caller's filters as stored: every given member a string, the ingredients and the excluded types deduplicated and sorted,
+// A caller's filters as stored: every given member a string, the hosts, the ingredients and the excluded types deduplicated and sorted,
 // and null when none is set. A member this version does not know is kept, for the feed's rules to refuse
 function filtersInput(js) {
     if (js === null || js === undefined)
@@ -338,6 +346,8 @@ function filtersInput(js) {
             misuse(`input.filters.${key}`, "a JSON value");
         out.extra.set(key, readJson(text));
     }
+    if (out.host !== null)
+        out.host = [...new Set(out.host.split(","))].sort(compareBytes).join(",");
     if (out.ingredients !== null)
         out.ingredients = [...new Set(out.ingredients.split(","))].sort(compareBytes).join(",");
     if (out.exclude_types !== null)

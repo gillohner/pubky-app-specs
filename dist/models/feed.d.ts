@@ -43,7 +43,7 @@ export interface FeedFilters extends Extra {
     place: string | null;
     /** One category as the index spells it (`amenity/cafe`), trimmed, at most 256 bytes. */
     category: string | null;
-    /** One service: the links' host in lower case (`open.spotify.com`). */
+    /** Services, any of them: the links' hosts in lower case, comma-separated, at most 10, deduplicated and sorted by code point (`open.spotify.com,www.deezer.com`). One host is a list of one. */
     host: string | null;
     /** One identifier the resources carry, `<namespace>:<value>` (`isbn:9780140328721`), the value at most 256 bytes. */
     key: string | null;

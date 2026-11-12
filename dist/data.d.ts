@@ -37,6 +37,8 @@ export declare const limits: Readonly<{
     collectionNameMinLength: 1;
     /** The most schema.org types in a resources feed's `filters.exclude_types`, in items: 50. */
     feedFilterExcludeTypesMaxCount: 50;
+    /** The most hosts in a resources feed's `filters.host`, in items: 10. */
+    feedFilterHostsMaxCount: 10;
     /** The longest ingredient in a resources feed's `filters.ingredients`, in code points: 64. */
     feedFilterIngredientMaxLength: 64;
     /** The most ingredients in a resources feed's `filters.ingredients`, in items: 3. */
