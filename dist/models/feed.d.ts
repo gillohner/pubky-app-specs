@@ -59,6 +59,8 @@ export interface FeedFilters extends Extra {
     window: string | null;
     /** `links`: every link as a row, where the feed otherwise lists one row per thing. */
     rows: string | null;
+    /** Schema.org types the feed leaves out, each with its subtypes: comma-separated type names, at most 50, deduplicated and sorted by code point (`Article,Event`). A resource with no type yet is not listed either. */
+    exclude_types: string | null;
 }
 export interface Feed extends Extra {
     /** The filter, which is the whole identity of the feed: its id hashes these members. */

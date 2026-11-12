@@ -10,7 +10,7 @@ import { checkExtra, checkSafeInt, validate } from "./common.js";
 import { checkLabel, foldLabel } from "./label.js";
 import { feedLayout, feedLayouts, feedReach, feedReaches, feedSort, feedSorts, feedTarget, feedTargets, isKnown, known, postKind, postKinds, } from "./kinds.js";
 /** The filter members in their stored order. */
-const FILTER_NAMES = ["when", "from", "to", "near", "radius", "place", "category", "host", "key", "remote", "closed", "ingredients", "sort", "window", "rows"];
+const FILTER_NAMES = ["when", "from", "to", "near", "radius", "place", "category", "host", "key", "remote", "closed", "ingredients", "sort", "window", "rows", "exclude_types"];
 const FILTER_WHEN = ["today", "weekend", "week", "month", "past"];
 const FILTER_SORTS = ["trending", "upcoming", "nearest"];
 const FILTER_WINDOWS = ["24h", "7d", "30d"];
@@ -117,6 +117,21 @@ function checkFilters(f) {
     }
     if (f.rows !== null)
         check(f.rows === "links", "rows");
+    if (f.exclude_types !== null) {
+        const types = f.exclude_types.split(",");
+        const maxLength = limits.feedResourceTypeMaxLength;
+        const maxCount = limits.feedFilterExcludeTypesMaxCount;
+        for (const name of types) {
+            if (codePointLen(name) > maxLength)
+                fail("length", `Resource feed filter exclude_types cannot be longer than ${maxLength} characters each`, "filters.exclude_types", maxLength);
+            check(isResourceTypeName(name), "exclude_types");
+        }
+        if (types.length > maxCount)
+            fail("count", `Resource feed filter exclude_types cannot name more than ${maxCount} types`, "filters.exclude_types", maxCount);
+        for (let i = 1; i < types.length; i++)
+            if (compareBytes(types[i - 1], types[i]) >= 0)
+                fail("format", "Resource feed filter exclude_types must be stored deduplicated and sorted by code point", "filters.exclude_types");
+    }
 }
 // The id input of the filters: the members that define the feed as one JSON object in their stored
 // order, each value a JSON string; place left out
@@ -214,6 +229,7 @@ const filtersCodec = object("PubkySocialFeedFilters", {
     sort: omitted(string),
     window: omitted(string),
     rows: omitted(string),
+    exclude_types: omitted(string),
 });
 const config = object("PubkySocialFeedConfig", {
     tags: option(list(string)),
@@ -297,7 +313,7 @@ export function feedId(value) {
     validate(feed, value, null, false);
     return idOf(value);
 }
-// A caller's filters as stored: every given member a string, the ingredients deduplicated and sorted,
+// A caller's filters as stored: every given member a string, the ingredients and the excluded types deduplicated and sorted,
 // and null when none is set. A member this version does not know is kept, for the feed's rules to refuse
 function filtersInput(js) {
     if (js === null || js === undefined)
@@ -324,6 +340,8 @@ function filtersInput(js) {
     }
     if (out.ingredients !== null)
         out.ingredients = [...new Set(out.ingredients.split(","))].sort(compareBytes).join(",");
+    if (out.exclude_types !== null)
+        out.exclude_types = [...new Set(out.exclude_types.split(","))].sort(compareBytes).join(",");
     return FILTER_NAMES.every((name) => out[name] === null) && out.extra.size === 0 ? null : out;
 }
 function filter(tags, field) {
