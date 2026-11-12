@@ -102,7 +102,7 @@ A resources feed may keep the filters of its search in `filters` (`FeedFilters`)
 | `radius` | whole km, 1 to 200 | `radius` | `radius` in metres (km × 1000) |
 | `place` | a name | `place` | not sent |
 | `category` | `amenity/cafe` | `category` | `category` |
-| `host` | `open.spotify.com` | `service` | `host` |
+| `host` | up to 10, any of them, `open.spotify.com,www.deezer.com` | `service` | `host` |
 | `key` | `isbn:9780140328721` | `id` | `key` |
 | `remote` | `yes`, `no` | `remote` | `remote=true`, `remote=false` |
 | `closed` | `yes` | `closed=1` | `closed=true` |
@@ -122,7 +122,7 @@ What the values mean, as the app reads them:
 - `filters.sort` orders the list in place of the feed's own `sort`, which stays in the id: two feeds that differ only in their own `sort` are two feeds even with one `filters.sort`.
 - `exclude_types` lists every resource whose type is none of these and no subtype of one, as the index reads it: the app's More kinds is the types its own kinds leave over. The list is the one saved, so a feed keeps it when the app's kinds change later. It goes with `content` too (those types, less these). A resource with no type yet is not listed.
 
-The rules check each value's spelling and which members go together, not that a value exists. Lowercase the ingredients before you build (only ASCII capitals are refused, so `Äpfel` and `äpfel` would be two feeds), and round `near` to 5 decimals (`Math.round(x * 1e5) / 1e5`, spelled as JavaScript prints it: `47.37`, never `47.370000000000005`). The builder sorts and deduplicates the ingredients and the excluded types, and stores no empty set. A member this version does not know is refused, as an unknown reach is, since it changes what the feed lists.
+The rules check each value's spelling and which members go together, not that a value exists. Lowercase the ingredients before you build (only ASCII capitals are refused, so `Äpfel` and `äpfel` would be two feeds), and round `near` to 5 decimals (`Math.round(x * 1e5) / 1e5`, spelled as JavaScript prints it: `47.37`, never `47.370000000000005`). The builder sorts and deduplicates the hosts, the ingredients and the excluded types, and stores no empty set. A member this version does not know is refused, as an unknown reach is, since it changes what the feed lists.
 
 The filters are a seventh segment of the id input, one JSON object of the members set in their stored order, `place` left out. `place` only names the point, as `name` names the feed: the same point under a new name is the same feed, so saving it renames the feed in place, and there is no old path to delete. A resources feed without filters keeps the bytes and the id it had.
 
