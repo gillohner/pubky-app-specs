@@ -22,11 +22,15 @@ export interface FeedConfig extends Extra {
     filters: FeedFilters | null;
 }
 /**
- * The search filters of a resources feed, every value a string and null for not set. The values
- * are the app's `/search` vocabulary, not the index's, with stricter rules: the README maps each
- * one to Pinakes `GET /v1/search`. A member this version does not know is
- * refused, as an unknown reach is: each one changes what the feed lists. `place` names the point
- * and stays outside the id.
+ * The search filters of a resources feed, every value a string and null for not set. Every member
+ * but `place` changes what the feed lists or how, so it is in the feed's id; `place` only names the
+ * `near` point. The members and their values are a closed set. A member or a value this version
+ * does not know rejects the feed, as an unknown reach does, because a reader that ignored it would
+ * list a different feed. This is an exception to the forward-compatibility contract, under which
+ * an unknown member is kept and an unknown filter value degrades to no filter: a later release
+ * that adds a member or a value here makes deployed readers skip the feeds that use it. Values are
+ * kept as given but for the sorted lists, so a stored default (`radius: "10"`, `window: "7d"`) is
+ * a second feed with its own id. The README gives each member's meaning.
  */
 export interface FeedFilters extends Extra {
     /** A calendar window of start times from now, in the viewer's time zone: `today`, `weekend`, `week` (to the end of Sunday), `month` or `past` (up to now). Not with `from` or `to`. */
@@ -37,11 +41,11 @@ export interface FeedFilters extends Extra {
     to: string | null;
     /** Around a point, `lat,lon` in degrees with at most 5 decimals and no trailing zero (`47.37,8.54`). */
     near: string | null;
-    /** The distance around `near` in whole kilometres, 1 to 200; 10 km without. */
+    /** The distance around `near` in whole kilometres, 1 to 200; 10 km without. Only with `near`. */
     radius: string | null;
     /** The name of the place `near` is, as shown: trimmed, at most 120 code points. Outside the id, so a new name renames the feed. */
     place: string | null;
-    /** One category as the index spells it (`amenity/cafe`), trimmed, at most 256 bytes. */
+    /** One category, by convention an OpenStreetMap `key/value` (`amenity/cafe`), trimmed, at most 256 bytes. */
     category: string | null;
     /** Services, any of them: the links' hosts in lower case, comma-separated, at most 10, deduplicated and sorted by code point (`open.spotify.com,www.deezer.com`). One host is a list of one. */
     host: string | null;
@@ -51,7 +55,7 @@ export interface FeedFilters extends Extra {
     remote: string | null;
     /** `yes`: also job postings past their closing date. */
     closed: string | null;
-    /** Recipes with every one of these ingredients: comma-separated, at most 3 of at most 64 code points each, lower case, deduplicated and sorted by code point. */
+    /** Recipes with every one of these ingredients: comma-separated, at most 3 of at most 64 code points each, with no ASCII capital letter (lowercase them first: `Äpfel` and `äpfel` are two feeds), deduplicated and sorted by code point. */
     ingredients: string | null;
     /** An order in place of the feed's own `sort`, which stays in the id: `trending`, `upcoming` (by start, soonest first, from now on unless `when`, `from` or `to` set the window) or `nearest` (with `near`). */
     sort: string | null;

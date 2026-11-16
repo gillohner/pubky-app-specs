@@ -9,7 +9,7 @@ import { socialPath } from "../path.js";
 import { checkExtra, checkSafeInt, validate } from "./common.js";
 import { checkLabel, foldLabel } from "./label.js";
 import { feedLayout, feedLayouts, feedReach, feedReaches, feedSort, feedSorts, feedTarget, feedTargets, isKnown, known, postKind, postKinds, } from "./kinds.js";
-/** The filter members in their stored order. */
+/** The filter members in their fixed order, the order a builder writes. */
 const FILTER_NAMES = ["when", "from", "to", "near", "radius", "place", "category", "host", "key", "remote", "closed", "ingredients", "sort", "window", "rows", "exclude_types"];
 const FILTER_WHEN = ["today", "weekend", "week", "month", "past"];
 const FILTER_SORTS = ["trending", "upcoming", "nearest"];
@@ -141,7 +141,7 @@ function checkFilters(f) {
                 fail("format", "Resource feed filter exclude_types must be stored deduplicated and sorted by code point", "filters.exclude_types");
     }
 }
-// The id input of the filters: the members that define the feed as one JSON object in their stored
+// The id input of the filters: the members that define the feed as one JSON object in their fixed
 // order, each value a JSON string; place left out
 const filtersIdOf = (f) => `{${FILTER_NAMES.filter((name) => name !== "place" && f[name] !== null)
     .map((name) => `"${name}":${JSON.stringify(f[name])}`)
@@ -165,7 +165,7 @@ function checkTagList(tags, field) {
     }
 }
 // Spelled as a schema.org type name: an ASCII capital letter or digit, then ASCII letters and
-// digits. Only the spelling: which types exist is the index's business
+// digits. Only the spelling: which types exist is the indexer's business
 const isResourceTypeName = (name) => /^[A-Z0-9][A-Za-z0-9]*$/.test(name);
 // Past the cap a name is refused without quoting it: it can be as long as the object
 const checkResourceTypeLength = (name) => {
