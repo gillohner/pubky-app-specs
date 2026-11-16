@@ -88,7 +88,42 @@ A builder trims display text (a name, a title, a post's content, a label) and lo
 
 A slug gives a version a readable leaf, `{editId}-{slug}.json`: 1 to 64 of a-z, 0-9 and `-`. It carries no identity, so a renamed slug is the next edit, and it is allowed under both roots.
 
-A feed's id is its filter (reach, layout, sort, content, tags, domain tags), so two feeds with one filter are one feed whatever their names. A tag label is trimmed and ASCII-lowercased and nothing more: `café` in NFC and in NFD are two labels with two ids.
+A feed's id is its filter (reach, layout, sort, content, tags, domain tags, target, and a resources feed's `filters` except `place`), so two feeds with one filter are one feed whatever their names. A tag label is trimmed and ASCII-lowercased and nothing more: `café` in NFC and in NFD are two labels with two ids.
+
+A feed lists posts unless its `target` is `resources`, the external links people tag (`feedTargets`). Posts is the default and is stored as no member, so `target: "posts"` builds the bytes and the id of a feed that names no target. A resources feed takes no `domain_tags`, and its `content` names schema.org types instead of a post kind: up to 10 type names of at most 64 characters, comma-separated with no spaces (`content: "MusicRecording,MusicAlbum"` lists songs and albums), each standing for itself and its subtypes as the indexer reads them, or none for every resource. The builder stores the list deduplicated and sorted by code point, so one set of types is one feed, and `feedResourceTypes(feed)` reads it back as an array. Only the spelling is checked (an ASCII capital letter or digit, then letters and digits): which types exist is up to the indexer, so a newer schema.org type needs no new release. A post kind or any other spelling is refused. Its id hashes `resources:` in front of the filter, so it never shares an id or a path with the post feed of the same filter; for that reason no reach is ever named after a target, and a later target puts its own name in front. The target changes what a feed lists, so a target this version does not know rejects the feed, as an unknown reach does. A reader that decodes feed bytes with no URL, `decodeObject({ kind: "feed" }, bytes)`, has no id to check; see below for readers older than `target`.
+
+A resources feed may keep the filters of its search in `filters` (`FeedFilters`), every value a string. Every member but `place` changes what the feed lists or how:
+
+| Member | Value | Meaning |
+|---|---|---|
+| `when` | `today`, `weekend`, `week`, `month`, `past` | Resources whose start falls in that calendar window from now (see below). Not with `from` or `to`. |
+| `from`, `to` | `YYYY-MM-DD` | Resources whose start falls between the start of `from` and the end of `to`, so `to` includes its whole day; either alone leaves the other side open. `from` is not after `to`. |
+| `near` | `lat,lon` | Within `radius` km of the point. |
+| `radius` | 1 to 200 | Kilometres around `near`, 10 when absent. Only with `near`. |
+| `place` | text, up to 120 code points | The display name of the `near` point. Outside the id. Only with `near`. |
+| `category` | text up to 256 bytes, by convention an OpenStreetMap `key/value` (`amenity/cafe`) | Resources of this category. |
+| `host` | up to 10 hosts (`open.spotify.com,www.deezer.com`) | Resources with a link whose host is any of these. |
+| `key` | `<namespace>:<value>`, the namespace one of `mbid`, `wikidata`, `isrc`, `upc`, `gtin`, `isbn`, `imdb`, `podcast`, `osm`, `doi` | Resources carrying this identifier (`isbn:9780140328721`). |
+| `remote` | `yes`, `no` | Job postings that can (`yes`) or cannot (`no`) be done remotely. |
+| `closed` | `yes` | Also job postings past their closing date. |
+| `ingredients` | up to 3 (`chickpeas,lemon`) | Recipes with every one of these ingredients. |
+| `sort` | `trending`, `upcoming`, `nearest` | The order, in place of the feed's own `sort`: `trending` the most referenced in `window` first, `upcoming` the soonest start first, `nearest` the closest to `near` first (only with `near`). |
+| `window` | `24h`, `7d`, `30d` | The window `trending` counts references in, `7d` when absent. Only with `sort` `trending`. |
+| `rows` | `links` | One row per link instead of one row per resource. |
+| `exclude_types` | up to 50 schema.org type names (`Article,Event`) | Leaves out resources of these types or their subtypes, and resources with no type. |
+
+- Days and windows are in the viewer's time zone. `when` is a calendar window from now, not a rolling one: `today` to the end of today, `week` to the end of Sunday (weeks run Monday to Sunday), `month` to the end of the month's last day, `weekend` from Saturday's start (or now, once it is the weekend) to the end of Sunday, `past` up to now.
+- With no `when`, `from` or `to`, a feed whose `content` is `Event` or a subtype of it lists from now on, and so does `sort: upcoming`; any other feed has no time window. With a window, `upcoming` orders inside it, so `when: past` with `upcoming` lists past events by their start.
+- `filters.sort` orders in place of the feed's own `sort`, which stays in the id: two feeds that differ only in their own `sort` are two feeds, even with one `filters.sort`.
+- `exclude_types` goes with `content` too: those types, less these.
+
+The rules check each value's spelling and which members go together, not that a value exists. Lists are comma-separated, with no space around a comma. Lowercase the ingredients before you build (only ASCII capitals are refused, so `Äpfel` and `äpfel` would be two feeds), and round `near` to 5 decimals (`Math.round(x * 1e5) / 1e5`, spelled as JavaScript prints it: `47.37`, never `47.370000000000005`). The builder sorts and deduplicates the hosts, the ingredients and the excluded types, and stores no empty set. It keeps every other value as given, so a stored default (`radius: "10"`, `window: "7d"`) is a second feed with its own id: leave the defaults out.
+
+The members and their values are a closed set. A member or a value this version does not know rejects the feed, as an unknown reach does, because a reader that ignored it would list a different feed. This is an exception to the rule that an unknown member is kept and an unknown filter value degrades to no filter: a later release that adds a member or a value to `filters` makes deployed readers skip the feeds that use it.
+
+The filters are a seventh segment of the id input, one JSON object of the members set, `place` left out, in the fixed order `when`, `from`, `to`, `near`, `radius`, `category`, `host`, `key`, `remote`, `closed`, `ingredients`, `sort`, `window`, `rows`, `exclude_types` (the order a builder writes), whatever order they are stored in. `place` only names the point, as `name` names the feed: the same point under a new name is the same feed, so saving it renames the feed in place, and there is no old path to delete. A resources feed without filters has no seventh segment.
+
+A 1.0.0-rc.1 reader refuses a resources feed, with or without `filters`, at its URL, since the id it derives has neither the `resources:` prefix nor the filters segment. One that decodes the bytes with no URL reads the post feed with the same six segments, with `target` and `filters` in `$unknown`, and `feedId` points it at that feed's path; a copy it writes there is refused by newer readers. Always decode a feed at its URL. The other way round, a feed written by 1.0.0-rc.1 that carried `target` or `filters` in its `feed` as an unknown member is read by these rules now, so its id and its validity change: an exception to the promise that a release reads what an earlier release wrote and derives every id the same way. Deliberate extensions belong under `ext`.
 
 ### Media
 
@@ -194,7 +229,7 @@ const profile = decodeObject(url, await session.storage.getBytes(toPath(url)), "
 await session.storage.putBytes(toPath(url), encodeObject(url, { ...profile, status: "On holiday" }));
 ```
 
-Pass `encodeObject` the `.object` with your changes, spread so `$unknown` stays on it. It also takes `{ kind, root? }` in place of a URL, for bytes that go somewhere the data model does not name. An edited feed filter moves the feed, since its id is the filter: write it at `buildUri(owner, "feed", feedId(feed))` and delete the old path. A feed is stored private. `feedPaths(id)` gives both of its addresses: to publish it, PUT the same bytes at `public`, and to unpublish, DELETE `public`; `deletionPaths` removes both copies.
+Pass `encodeObject` the `.object` with your changes, spread so `$unknown` stays on it. It also takes `{ kind, root? }` in place of a URL, for bytes that go somewhere the data model does not name. An edited feed filter moves the feed, since its id is the filter: write it at `buildUri(owner, "feed", feedId(feed))` and delete the old path, unless the id is unchanged (a new name, icon or `place` only). A feed is stored private. `feedPaths(id)` gives both of its addresses: to publish it, PUT the same bytes at `public`, and to unpublish, DELETE `public`; `deletionPaths` removes both copies.
 
 ### Articles and collections
 
@@ -331,14 +366,14 @@ A `ValidationError` has `message`, the reference text starting with `Validation 
 | `code` | the rule | `limit` |
 |---|---|---|
 | `json` | the bytes, or an envelope inside them, are not JSON of the stored shape | |
-| `size` | an object or a file over its byte cap | bytes |
+| `size` | an object or a file over its byte cap, or text over a cap in bytes (a resources feed's `filters.category`, the value of `filters.key`) | bytes |
 | `length` | text outside its bounds | code points |
 | `count` | a list longer than its cap | items |
 | `blank` | text, a list or a file that is empty or whitespace only | |
-| `format` | text not spelled the one way the model accepts: a key, an id, a tag, a slug | |
+| `format` | text not spelled the one way the model accepts (a key, an id, a tag, a slug), or a number held as text out of its range (a resources feed's `filters.radius`) | |
 | `id` | an id that does not match its object, or whose time is out of bounds | |
 | `reference` | a URI in a reference position the model refuses | |
-| `unknown_name` | a kind, reach, layout, sort or root this version does not know | |
+| `unknown_name` | a kind, reach, layout, sort, target or root this version does not know, or a member of a resources feed's `filters` this version does not know | |
 | `unsafe_integer` | an integer a JavaScript number cannot hold exactly | |
 | `path` | a URL or path that names no object of the kind asked for | |
 | `conflict` | members or arguments that cannot go together | |
