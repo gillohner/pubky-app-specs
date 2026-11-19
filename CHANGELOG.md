@@ -120,6 +120,30 @@ again.
   those pins too before an app writes it. `filters` needs a release of the data model before it
   goes upstream.
 
+## 1.0.0-rc.2
+
+### Stored bytes
+
+These follow the crate, which changes with them:
+
+- The migration of a 0.x article promotes its first attachment to the `cover_image` only when
+  that attachment is an image and the body does not reference `attachment:0`, which is inline
+  media there and no cover. When it promotes, every inline reference `attachment:{n}` of the body
+  is respelled `attachment:{n-1}`, so each still names the file it did; everything else in the
+  body keeps its bytes. The scan is textual, so an `attachment:{n}` literal inside a code span
+  or fence counts too: it blocks the promotion when it names slot 0 and is renumbered otherwise,
+  where the app's reader, which walks the markdown tree, saw no reference. 1.0.0-rc.1 promoted
+  the first image regardless and left the references one slot off. `transform_rev` is 4, so a
+  tree migrated under rc.1 is walked again, which picks up what rc.1 skipped; a walk never
+  rewrites a 1.x object that exists, so an article rc.1 wrote keeps its bytes. That is the
+  never-rewrite policy, not a repair.
+- The docs now state the convention those references follow, on `ArticleContent` (and so in
+  `docs/reference.md`) and on the crate's `PubkySocialArticleContent`: in an article's `body`,
+  `![alt](attachment:{n})` shows the post's `attachments[n]`, whatever its media type, with `n`
+  counted from zero, and the cover lives in `cover_image`, not among the `attachments`. No bytes
+  change with it and the data model checks none of it: what a reader shows for a slot that is
+  not there is the app's to decide.
+
 ## 1.0.0-rc.1
 
 ### API
